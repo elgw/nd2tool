@@ -31,6 +31,7 @@ Current Limitations:
  - Linux only.
  - Does not cover all edge cases, have a look at the
 [references](#references) to find the best tool for you.
+ - Does not do any corrections to the image data.
 
 Project goals
  1. Provide a small (at the moment < 3 Mb including the Nikon
