@@ -124,11 +124,13 @@ github](https://github.com/elgw/nd2tool/issues) to report bugs.
 ## References
  - [JSON specification](https://www.json.org/)
  - [Interactively explore JSON data](https://jsonformatter.org/json-viewer)
+
 Alternative command line tools:
  - [ggirelli/radiantkit](https://github.com/ggirelli/radiantkit) - Command line
    tool for conversion from nd2 to tiff as well as lots of other
    stuff. Unfortunately the repository has been archived but the code
    is still useful. Uses the Python package nd2reader.
+
 Libraries:
  - [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader) a pure
    Python package for reading nd2 files. I.e. not using the Nikon library.
