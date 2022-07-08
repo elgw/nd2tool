@@ -1,9 +1,8 @@
 # nd2tool
 
  - [Introduction](#introduction)
- - [Usage](#usage)
-   - [Installation](#installation)
-   - [Example usage](#example-usage)
+ - [Installation](#installation)
+ - [Example usage](#example-usage)
  - [Development](#development)
    - [Todo](#todo)
    - [Done](#done)
@@ -42,9 +41,7 @@ Project goals
  3. Be flexible and support the needs for your processing.
 
 
-## Usage
-
-### Installation
+## Installation
 The standard procedure, get libraries, compile, make available.
 ```
 sudo apt-get update
@@ -53,12 +50,13 @@ sudo apt-get install libcjson1 libcjson-dev libtiff5-dev build-essential
 make getsdk
 # install Nikon's libraries so that they can be found duing build and run
 sudo cp lib/*.so /usr/local/lib/
+# compile
 make
-# Install binary and man page
+# Install binary and man page i.e. make available system wide
 sudo make install
 ```
 
-### Example usage
+## Example usage
 ```
 nd2tool iiQV015_20220630_001.nd2
 3 FOV in 4 channels:
@@ -79,7 +77,8 @@ Writing to iiQV015_20220630_001/SpGold_001.tif
 Writing to iiQV015_20220630_001/dapi_003.tif
 ```
 
-See the [man page](doc/nd2tool.txt) for the full documentation.
+See the [man page](doc/nd2tool.txt) for the full documentation
+(i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
 
 
 ## Development
