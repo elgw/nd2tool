@@ -122,8 +122,11 @@ Please use [the issue tracking system on
 github](https://github.com/elgw/nd2tool/issues) to report bugs.
 
 ## References
- - [JSON specification](https://www.json.org/)
- - [Interactively explore JSON data](https://jsonformatter.org/json-viewer)
+ - [Interactively explore JSON
+   data](https://jsonformatter.org/json-viewer) Copy and paste the
+   JSON output from nd2tool (**--meta-file**, **--meta-frame**,
+   **--meta-exp**) here for a quick overview. See also [JSON
+   specification](https://www.json.org/) if you are new to this.
 
 Alternative command line tools:
  - [ggirelli/radiantkit](https://github.com/ggirelli/radiantkit) - Command line
@@ -131,8 +134,14 @@ Alternative command line tools:
    stuff. Unfortunately the repository has been archived but the code
    is still useful. Uses the Python package nd2reader.
 
-Libraries:
+Python libraries/tools:
  - [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader) a pure
    Python package for reading nd2 files. I.e. not using the Nikon library.
  - [tlambert03/nd2](https://github.com/tlambert03/nd2) a Python
    package that uses and ships Nikons shared objects.
+
+Libraries used by **nd2tool**:
+ - [cJSON](https://github.com/DaveGamble/cJSON) for parsing JSON data.
+ - [libTIFF](http://www.libtiff.org) for writing tif files.
+ - [Nikon's nd2 library](https://www.nd2sdk.com/) for reading nd2 files.
+ - [the GNU C library](https://www.gnu.org/software/libc/)
