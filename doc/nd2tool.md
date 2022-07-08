@@ -18,6 +18,9 @@ conversion.
 **-v l**, **\--verbose l**
 : Set verbosity level to l. 0=quite, 1=normal, >1 extra.
 
+**-o**, **\--overwrite**
+: Overwrite existing tif files.
+
 **-V**, **\--version**
 : Show version information and quit.
 

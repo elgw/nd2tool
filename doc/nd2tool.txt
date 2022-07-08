@@ -12,13 +12,17 @@ OPTIONS
        -i, --info
 	      Display basic information from the metadata but do no conversion
 
-       --verbose l
+       -v l, --verbose l
 	      Set verbosity level to l.	 0=quite, 1=normal, >1 extra.
 
-       --version, -V
+       -o, --overwrite
+	      Overwrite existing tif files.
+
+       -V, --version
 	      Show version information and quit.
 
-       --help Show a short help message and quit.
+       -h, --help
+	      Show a short help message and quit.
 
        --meta Extract  all  metadata and write to stdout.  This is seldom use‐
 	      ful, please see the following options.
@@ -48,10 +52,6 @@ INPUT
 OUTPUT
        If nd2tool is run by
 
-NOTES
-       The  meta  data	extraction  is supposed to work even if the conversion
-       does not and should be part of any bug report.
-
 	      nd2tool iiQV015_20220630_001.nd2
 
        it will create the following files:
@@ -71,10 +71,16 @@ NOTES
 	      ├── SpGold_002.tif
 	      └── SpGold_003.tif
 
-       i.e. a new folder with the same name as the input  file	excluding  the
+       i.e. a  new  folder  with the same name as the input file excluding the
        file extension .nd2.  Then each Field of View (FOV) and channel will be
-       saved as a separate file with the scheme CHANNEL_FOV.tif	 were  FOV  is
-       padded with 0s to always return three digits.
+       saved  as  a  separate file with the scheme CHANNEL_FOV.tif were FOV is
+       padded with 0s to always be three digits.
+
+NOTES
+       The meta data extraction should work in most cases even if the  conver‐
+       sion does not.  If meta data can’t be parsed from a file it is probably
+       corrupt or not a nd2 file.  Meta data should be appended to all bug re‐
+       ports.
 
 WEB PAGE
        <https://github.com/elgw/nd2tool/>

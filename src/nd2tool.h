@@ -27,6 +27,7 @@ typedef struct{
     int verbose;
     int convert;
     int showinfo;
+    int overwrite;
 /* If metadata is to be dumped to stdout */
     int metamode;
     int meta_file;
@@ -130,6 +131,8 @@ void filter_textinfo(char * s);
 void remove_file_ext(char * str);
 /* Get the peak memory used by the process from /proc/<PID>/status */
 size_t get_peakMemoryKB(void);
+/* Check if file exists */
+int isfile(char *);
 
 void show_help(char * binary_name);
 void print_version(FILE * fid);

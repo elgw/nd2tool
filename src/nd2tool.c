@@ -263,6 +263,19 @@ metadata_t * parse_metadata(const char * str)
     return m;
 }
 
+
+int isfile(char * filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file != NULL)
+    {
+        fclose(file);
+        return 1;
+    }
+
+    return 0;
+}
+
 file_attrib_t * parse_file_attrib(const char * str)
 {
     /* Parse the result from Lim_FileGetMetadata */
@@ -598,12 +611,20 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
             char * outname = malloc(1024);
             sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
+
+            if(conf->overwrite == 0)
+            {
+                if(isfile(outname))
+                {
+                    printf("Skipping %s (file exists)\n", outname);
+                    goto next_file;
+                }
+            }
             if(conf->verbose > 0)
             {
                 printf("Writing to %s ... ", outname); fflush(stdout);
             }
             tiff_writer_t * tw = tiff_writer_init(outname, tags, M, N, P);
-
 
             for(int kk = 0; kk<P; kk++) /* For each plane */
             {
@@ -632,11 +653,13 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 
             /* Finish this image */
             tiff_writer_finish(tw);
-            free(outname);
             if(conf->verbose > 0)
             {
                 printf("done\n");
             }
+        next_file: ;
+            free(outname);
+
         } // cc
     }// ff
 
@@ -718,9 +741,12 @@ void show_help(char * name)
     printf("\n");
     printf("Options:\n");
     printf("  -i, --info \n\t Just show brief info about the file(s) and then quit.\n");
-    printf("  -v, --verbose l\n\t Set verbosity level l.\n");
+    printf("  -v, --verbose l\n\t Set verbosity level l. Default: %d.\n",
+           conf->verbose);
     printf("  -V, --version\n\t Show version info and quit.\n");
     printf("  -h, --help\n\t Show this message and quit\n");
+    printf("  -o, --overwrite\n\t Overwrite existing tif files. Default: %d.\n",
+           conf->overwrite);
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -741,6 +767,7 @@ ntconf_t * ntconf_new(void)
     ntconf_t * conf = malloc(sizeof(ntconf_t));
     conf->verbose = 1;
     conf->convert = 1;
+    conf->overwrite = 0;
     conf->showinfo = 1;
     conf->metamode = 0;
     conf->meta_file = 0;
@@ -748,6 +775,7 @@ ntconf_t * ntconf_new(void)
     conf->meta_frame = 0;
     conf->meta_text = 0;
     conf->meta_exp = 0;
+
     return conf;
 }
 
@@ -761,6 +789,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     struct option longopts[] = {
         { "help",   no_argument, NULL, 'h' },
         { "info", no_argument, NULL, 'i'},
+        { "overwrite", no_argument, NULL, 'o'},
         { "verbose", required_argument, NULL, 'v'},
         { "version", no_argument, NULL, 'V'},
         { "meta", no_argument, NULL, '1'},
@@ -807,6 +836,9 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
         case 'h':
             show_help(argv[0]);
             exit(EXIT_SUCCESS);
+            break;
+        case 'o':
+            conf->overwrite = 1;
             break;
         case 'v':
             conf->verbose = atoi(optarg);
@@ -1024,10 +1056,18 @@ int main(int argc, char ** argv)
         if(conf->convert)
         {
             /* Create output folder and export tiff files */
-            nd2_to_tiff(conf, info);
-            /* Write some basic information to the log */
-            hello_log(conf, info, argc, argv);
-            nd2info_print(info->log, info);
+            if(nd2_to_tiff(conf, info) == EXIT_SUCCESS)
+            {
+                /* Write some basic information to the log */
+                hello_log(conf, info, argc, argv);
+                nd2info_print(info->log, info);
+                fprintf(info->log, "done\n");
+            } else {
+                fprintf(stderr,
+                        "Conversion failed for %s, please make a bug report at "
+                        "https://github.com/elgw/nd2tool/issues in order to "
+                        "improve the program.\n", argv[ff]);
+            }
         }
 
     cleanup_file: ;
@@ -1046,6 +1086,7 @@ int main(int argc, char ** argv)
             printf("Done! But failed to measure RAM usage\n");
         }
     }
+
     ntconf_free(conf);
     return EXIT_SUCCESS;
 }

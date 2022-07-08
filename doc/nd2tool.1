@@ -16,14 +16,17 @@ conversion.
 \f[B]-i, --info\f[R]
 Display basic information from the metadata but do no conversion
 .TP
-\f[B]--verbose l\f[R]
+\f[B]-v l\f[R], \f[B]--verbose l\f[R]
 Set verbosity level to l.
 0=quite, 1=normal, >1 extra.
 .TP
-\f[B]--version\f[R], \f[B]-V\f[R]
+\f[B]-o\f[R], \f[B]--overwrite\f[R]
+Overwrite existing tif files.
+.TP
+\f[B]-V\f[R], \f[B]--version\f[R]
 Show version information and quit.
 .TP
-\f[B]--help\f[R]
+\f[B]-h\f[R], \f[B]--help\f[R]
 Show a short help message and quit.
 .TP
 \f[B]--meta\f[R]
@@ -52,10 +55,6 @@ It can currently not handle images with time loops.
 .SH OUTPUT
 .PP
 If nd2tool is run by
-.SH NOTES
-.PP
-The meta data extraction is supposed to work even if the conversion does
-not and should be part of any bug report.
 .IP
 .nf
 \f[C]
@@ -88,7 +87,14 @@ i.e.\ a new folder with the same name as the input file excluding the
 file extension \f[C].nd2\f[R].
 Then each Field of View (FOV) and channel will be saved as a separate
 file with the scheme \f[C]CHANNEL_FOV.tif\f[R] were FOV is padded with
-0s to always return three digits.
+0s to always be three digits.
+.SH NOTES
+.PP
+The meta data extraction should work in most cases even if the
+conversion does not.
+If meta data can\[cq]t be parsed from a file it is probably corrupt or
+not a nd2 file.
+Meta data should be appended to all bug reports.
 .SH WEB PAGE
 .PP
 <https://github.com/elgw/nd2tool/>
