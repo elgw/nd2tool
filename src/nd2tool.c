@@ -181,7 +181,7 @@ metadata_t * parse_metadata(const char * str)
     metadata_t * m = malloc(sizeof(metadata_t));
 
     const cJSON * j_contents = cJSON_GetObjectItemCaseSensitive(j, "contents");
-    get_json_int(j_contents, "channelCount", &m->nchannels) != 0)
+    if(get_json_int(j_contents, "channelCount", &m->nchannels) != 0)
     {
         fprintf(stderr, "Unable to continue (%s, line %d)\n",
                 __FILE__, __LINE__);
