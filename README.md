@@ -128,13 +128,18 @@ github](https://github.com/elgw/nd2tool/issues) to report bugs.
    **--meta-exp**) here for a quick overview. See also [JSON
    specification](https://www.json.org/) if you are new to this.
 
-Alternative command line tools:
+Alternative command line tools for nd2 files:
  - [ggirelli/radiantkit](https://github.com/ggirelli/radiantkit) - Command line
    tool for conversion from nd2 to tiff as well as lots of other
    stuff. Unfortunately the repository has been archived but the code
    is still useful. Uses the Python package nd2reader.
 
-Python libraries/tools:
+GUI tools for nd2 files:
+ - [Nikon NIS Elements
+   (Viewer)](https://www.microscope.healthcare.nikon.com/products/software/nis-elements/viewer) unfortunately not for Linux.
+ - [FIJI/ImageJ](https://imagej.net/software/fiji/)
+
+Python libraries/tools for nd2 files:
  - [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader) a pure
    Python package for reading nd2 files. I.e. not using the Nikon library.
  - [tlambert03/nd2](https://github.com/tlambert03/nd2) a Python
