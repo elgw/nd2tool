@@ -6,10 +6,13 @@ int get_json_int(const cJSON * j, const char * item, int * store)
     if (cJSON_IsNumber(q))
     {
         *store = q->valueint;
+        return EXIT_SUCCESS;
     } else {
-        printf("cJSON_IsNumber failed? %d\n", __LINE__);
+        fprintf(stderr, "ERROR: cJSON_IsNumber failed when trying to parse %s in %s at line %d\n",
+               item, __FILE__, __LINE__);
+        *store = -1;
+        return EXIT_FAILURE;
     }
-    return 0;
 }
 
 int get_json_double(const cJSON * j, const char * item, double * store)
@@ -18,10 +21,13 @@ int get_json_double(const cJSON * j, const char * item, double * store)
     if (cJSON_IsNumber(q))
     {
         *store = q->valuedouble;
+        return EXIT_SUCCESS;
     } else {
-        printf("cJSON_IsNumber failed %d\n", __LINE__);
+        fprintf(stderr, "ERROR: cJSON_IsNumber failed when trying to parse %s in %s at line %d\n",
+                item, __FILE__, __LINE__);
+        *store = NAN;
+        return EXIT_FAILURE;
     }
-    return 0;
 }
 
 char * get_json_string(const cJSON * j, const char * item)
@@ -32,6 +38,7 @@ char * get_json_string(const cJSON * j, const char * item)
         char * ret = strdup(q->valuestring);
         return ret;
     }
-    fprintf(stderr, "ERROR: Failed to parse %s on line %d\n", item, __LINE__);
+    fprintf(stderr, "ERROR: Failed to parse %s in %s on line %d\n",
+            item, __FILE__,__LINE__);
     return NULL;
 }

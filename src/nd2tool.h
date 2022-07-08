@@ -105,11 +105,20 @@ void metadata_free(metadata_t * m);
 metadata_t * parse_metadata(const char * str);
 file_attrib_t * parse_file_attrib(const char * str);
 
+/* RAW metadata extraction without JSON parsing */
+void showmeta(ntconf_t * conf, char * file);
+void showmeta_file(char *);
+void showmeta_coord(char *);
+void showmeta_frame(char *);
+void showmeta_text(char *);
+void showmeta_exp(char *);
 
 /* Convert to tif and place in the outfolder. The outfolder has to
    exist. */
 int nd2_to_tiff(ntconf_t *, nd2info_t *);
 
+/* Write some initial information to the log file, info->log */
+void hello_log(ntconf_t * conf, nd2info_t * info, int argc, char ** argv);
 
 /*
  * Misc

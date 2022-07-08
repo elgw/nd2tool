@@ -39,7 +39,9 @@ size_t get_peakMemoryKB(void)
     FILE * sf = fopen(statfile, "r");
     if(sf == NULL)
     {
-        fprintf(stderr, "Failed to open %s\n", statfile);
+        fprintf(stderr,
+                "ERROR in %s at line %d: Failed to open %s\n",
+                __FILE__, __LINE__, statfile);
         free(statfile);
         return 0;
     }
@@ -63,18 +65,14 @@ size_t get_peakMemoryKB(void)
     fclose(sf);
     free(statfile);
 
-    // Parse the line starting with "VmPeak"
-    // Seems like it is always in kB
-    // (reference: fs/proc/task_mmu.c)
-    // actually in kiB i.e., 1024 bytes
-    // since the last three characters are ' kb' we can skip them and parse in between
+    /* Parse the line starting with "VmPeak" Seems like it is always
+     * in kB (reference: fs/proc/task_mmu.c) actually in kiB i.e.,
+     * 1024 bytes since the last three characters are ' kb' we can
+     * skip them and parse in-between */
     size_t peakMemoryKB = 0;
-    //  printf("peakline: '%s'\n", peakline);
     if(strlen(peakline) > 11)
     {
         peakline[strlen(peakline) -4] = '\0';
-
-        //    printf("peakline: '%s'\n", peakline+7);
         peakMemoryKB = (size_t) atol(peakline+7);
     }
 
@@ -170,21 +168,23 @@ metadata_t * parse_metadata(const char * str)
 
     if (j == NULL)
     {
-        fprintf(stderr, "Error parsing metadata\n");
+        fprintf(stderr, "Error parsing metadata (%s, line %d)\n", __FILE__, __LINE__);
         const char *error_ptr = cJSON_GetErrorPtr();
         if (error_ptr != NULL)
         {
             fprintf(stderr, "Error before: %s\n", error_ptr);
         }
+        fprintf(stderr, "Unable to continue\n");
         exit(EXIT_FAILURE);
     }
 
     metadata_t * m = malloc(sizeof(metadata_t));
 
     const cJSON * j_contents = cJSON_GetObjectItemCaseSensitive(j, "contents");
-    if(get_json_int(j_contents, "channelCount", &m->nchannels) != 0)
+    get_json_int(j_contents, "channelCount", &m->nchannels) != 0)
     {
-        printf("Failed to get the number of channels\n");
+        fprintf(stderr, "Unable to continue (%s, line %d)\n",
+                __FILE__, __LINE__);
         exit(EXIT_FAILURE);
     }
     assert(m->nchannels > 0);
@@ -204,12 +204,10 @@ metadata_t * parse_metadata(const char * str)
         cJSON * j_chan = cJSON_GetObjectItemCaseSensitive(j_channel, "channel");
         m->channels[cc]->name = get_json_string(j_chan, "name");
         assert(m->channels[cc] != NULL);
-        if(get_json_double(j_chan,
+        get_json_double(j_chan,
                            "emissionLambdaNm",
-                           &m->channels[cc]->emissionLambdaNm) != 0)
-        {
-            printf("Failed to get emissionLambdanm\n");
-        }
+                        &m->channels[cc]->emissionLambdaNm);
+
         { /* Pixel size and image size */
             cJSON * j_vol = cJSON_GetObjectItemCaseSensitive(j_channel,
                                                              "volume");
@@ -283,30 +281,18 @@ file_attrib_t * parse_file_attrib(const char * str)
 
     file_attrib_t * attrib = malloc(sizeof(file_attrib_t));
 
-    if(get_json_int(json, "heightPx", &attrib->heightPx) != 0)
-    {
-        printf("Failed to parse 'heightPx'\n");
-    }
-    if(get_json_int(json, "widthPx", &attrib->widthPx) != 0)
-    {
-        printf("Failed to parse 'widthPx'\n");
-    }
-    if(get_json_int(json, "sequenceCount", &attrib->sequenceCount) != 0)
-    {
-        printf("Failed to parse 'sequenceCount'\n");
-    }
-    if(get_json_int(json, "componentCount", &attrib->componentCount) != 0)
-    {
-        printf("Failed to parse 'componentCount'\n");
-    }
-    if(get_json_int(json, "bitsPerComponentInMemory", &attrib->bitsPerComponentInMemory) != 0)
-    {
-        printf("Failed to parse 'bitsPerComponentInMemory'\n");
-    }
-    if(get_json_int(json, "bitsPerComponentSignificant", &attrib->bitsPerComponentSignificant) != 0)
-    {
-        printf("Failed to parse 'bitsPerComponentSignificant'\n");
-    }
+    get_json_int(json, "heightPx",
+                 &attrib->heightPx);
+    get_json_int(json, "widthPx",
+                 &attrib->widthPx);
+    get_json_int(json, "sequenceCount",
+                 &attrib->sequenceCount);
+    get_json_int(json, "componentCount",
+                 &attrib->componentCount);
+    get_json_int(json, "bitsPerComponentInMemory",
+                 &attrib->bitsPerComponentInMemory);
+    get_json_int(json, "bitsPerComponentSignificant",
+                 &attrib->bitsPerComponentSignificant);
 
     cJSON_Delete(json);
     return attrib;
@@ -380,8 +366,6 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     {
         info->error = malloc(strlen(file) + 128);
         sprintf(info->error, "Error: Can't find coordinates in %s\n", file);
-        /* Library error in this case: this does not free all
-           memory. Happens for example when you try to open a tif file. */
         Lim_FileClose(nd2);
         return info;
     }
@@ -434,8 +418,6 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     {
         info->error = malloc(strlen(file) + 128);
         sprintf(info->error, "Error: Can't find any image planes %s\n", file);
-        /* Library error in this case: this does not free all
-           memory. Happens for example when you try to open a tif file. */
         Lim_FileClose(nd2);
         return info;
     }
@@ -1057,7 +1039,12 @@ int main(int argc, char ** argv)
     size_t mem = get_peakMemoryKB();
     if(conf->verbose > 1)
     {
-        printf("Done! Used %zu kb of RAM\n", mem);
+        if(mem > 0)
+        {
+            printf("Done! Used %zu kb of RAM\n", mem);
+        } else {
+            printf("Done! But failed to measure RAM usage\n");
+        }
     }
     ntconf_free(conf);
     return EXIT_SUCCESS;
