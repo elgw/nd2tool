@@ -1,11 +1,9 @@
 # nd2tool
 
  - [Introduction](#introduction)
-   - [Project goals](#project-goals)
  - [Usage](#usage)
    - [Installation](#installation)
    - [Example usage](#example-usage)
- - [nd2tool vs radiantkit](#nd2tool-vs-radiantkit)
  - [Development](#development)
    - [Todo](#todo)
    - [Done](#done)
@@ -13,28 +11,40 @@
  - [References](#references)
 
 ## Introduction
-Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that can be used to:
- 1. extract metadata from nd2 files, and,
- 2. export the image data to tif files.
+Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that
+can be used to:
+ 1. Make a short summary of the meta data in a nd2 file (**-i**).
+ 2. extract all metadata (**--meta**) from nd2 file or specific
+    portions (**--meta-file**, **--meta-coord**, **--meta-frame**,
+    **--meta-text**, **--meta-exp**), and,
+ 3. export the image data to tif files, one per Field of View (FOV)
+    and color, in a memory efficient way. Internally **nd2tool** only
+    read and write one image plane at a time can convert large files
+    using little RAM, for example a 23 GB ND2 image can typically be
+    converted to till files using less than 100 Mb of RAM.
 
-Limitations:
+Current Limitations:
+ - To be considered as **experimental** since it is only tested on a
+    few images.
  - Only supports loops over XY, Color and Z, i.e., not over time.
  - Only supports data stored as 16-bit unsigned int.
- - To be considered as **experimental** since it is not tested on
-    more than a few images.
- - Only for linux at the moment.
+ - Linux only.
+ - Does not cover all edge cases, have a look at the
+[references](#references) to find the best tool for you.
 
-### Project goals
- 1. Provide a small and stable command line tool for the basic things
-    that I do with nd2 files.
- 2. Keep the number of dependencies small and only use standard packages.
+Project goals
+ 1. Provide a small (at the moment < 3 Mb including the Nikon
+    libraries) and stable command line tool for the basic things that
+    I need to do with nd2 files.
+ 2. Keep the number of dependencies small and only use standard
+    packages.
+ 3. Be flexible and support the needs for your processing.
 
-I don't plan to cover all edge cases, have a look at the
-[references](#references) to see if there is anything that suits you better.
 
 ## Usage
 
 ### Installation
+The standard procedure, get libraries, compile, make available.
 ```
 sudo apt-get update
 sudo apt-get install libcjson1 libcjson-dev libtiff5-dev build-essential
@@ -71,31 +81,11 @@ Writing to iiQV015_20220630_001/dapi_003.tif
 See the [man page](doc/nd2tool.txt) for the full documentation.
 
 
-## nd2tool vs radiantkit
-
- - Features:
-   - radiantkit: **many**
-   - nd2tool: few
- - Install size:
-   - radiantkit 683 Mb (with venv).
-   - nd2tool **< 0.2 Mb**
- - Peak RAM usage during tif conversion (measured by `cat
-   /proc/<PID>/status | grep VmPeak`):
-   - radiantkit 11.7 G
-   - nd2tool **68 Mb**
- - Time consumption for tif conversion:
-   - radiantkit: 9 min 1 s
-   - nd2tool: **48 s**
-
-Memory and time were benchmarked on a 23 GB nd2 file of size XY(3) x
-λ(4) x Z(241).
-
 ## Development
 
 **nd2tool** uses [Nikon's nd2 library](https://www.nd2sdk.com/) to
-extract metadata. I'm not allowed to distribute it at the moment and
-hence it is downloaded from
-[tlambert03/nd2](https://github.com/tlambert03/nd2).
+extract metadata. Until I get permissions to include it here it can be
+found at [tlambert03/nd2](https://github.com/tlambert03/nd2).
 
 The JSON metadata is parsed by
 [cJSON](https://github.com/DaveGamble/cJSON) and images are saved as
@@ -108,10 +98,11 @@ tiff using [libTIFF](http://www.libtiff.org).
        writing is done.
  - [ ] Collect various nd2 files for testing.
  - [ ] Check for inconsistent dz values between image planes (shake detection).
- - [ ] Waiting for permission from Nikon to distribute nd2sdk together
+ - [ ] Get permission from Nikon to distribute nd2sdk together
        with this repo. Request sent 20220701.
  - [ ] check that the channel names are valid file names and possibly
        convert spaces to underscores. Use toupper or tolower?
+ - [ ] Support time series.
 
 Maybe some day:
 
@@ -133,11 +124,13 @@ github](https://github.com/elgw/nd2tool/issues) to report bugs.
 ## References
  - [JSON specification](https://www.json.org/)
  - [Interactively explore JSON data](https://jsonformatter.org/json-viewer)
+Alternative command line tools:
  - [ggirelli/radiantkit](https://github.com/ggirelli/radiantkit) - Command line
    tool for conversion from nd2 to tiff as well as lots of other
    stuff. Unfortunately the repository has been archived but the code
    is still useful. Uses the Python package nd2reader.
+Libraries:
  - [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader) a pure
-   python package for reading nd2 files. I.e. not using the Nikon library.
- - [tlambert03/nd2](https://github.com/tlambert03/nd2) a python
+   Python package for reading nd2 files. I.e. not using the Nikon library.
+ - [tlambert03/nd2](https://github.com/tlambert03/nd2) a Python
    package that uses and ships Nikons shared objects.
