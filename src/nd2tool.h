@@ -17,6 +17,11 @@
 
 #include <sys/stat.h>
 
+/* This is a stripped version of the header file from www.nd2sdk.com
+ * where comments are removed.
+*/
+// #include "../include/Nd2ReadSdk.h_stripped"
+
 #include "../include/Nd2ReadSdk.h"
 #include "tiff_util.h"
 #include "json_util.h"

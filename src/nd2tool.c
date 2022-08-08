@@ -502,6 +502,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
 
 int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 {
+    /* Check that the nd2 file exists */
     struct stat stats;
     if(stat(info->filename, &stats) != 0)
     {
@@ -512,6 +513,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
         return EXIT_FAILURE;
     }
 
+    /* Please note that this reports true also for tif files */
     void * nd2 = Lim_FileOpenForReadUtf8(info->filename);
     if(nd2 == NULL)
     {
@@ -624,7 +626,19 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
             {
                 printf("Writing to %s ... ", outname); fflush(stdout);
             }
-            tiff_writer_t * tw = tiff_writer_init(outname, tags, M, N, P);
+
+            /* Create temporary file */
+            char * outname_tmp = malloc(strlen(outname) + 16);
+            sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+            int tfid = 0;
+            if((tfid = mkstemp(outname_tmp)) == -1)
+            {
+                fprintf(stderr, "Failed to create a temporary file based on pattern: %s\n", outname_tmp);
+                exit(EXIT_FAILURE);
+            }
+            close(tfid);
+
+            tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P);
 
             for(int kk = 0; kk<P; kk++) /* For each plane */
             {
@@ -653,10 +667,12 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 
             /* Finish this image */
             tiff_writer_finish(tw);
+            rename(outname_tmp, outname);
             if(conf->verbose > 0)
             {
                 printf("done\n");
             }
+            free(outname_tmp);
         next_file: ;
             free(outname);
 

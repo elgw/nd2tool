@@ -38,27 +38,33 @@ Project goals
     I need to do with nd2 files.
  2. Keep the number of dependencies small and only use standard
     packages.
- 3. Be flexible and support the needs for your processing.
+ 3. Add features on demand.
 
 
 ## Installation
-The standard procedure, get libraries, compile, make available.
+
+The standard procedure: get required libraries, compile and then
+install. These instructions are for Ubuntu 22.04 LTS.
+
 ```
+# install standard libraries
 sudo apt-get update
 sudo apt-get install libcjson1 libcjson-dev libtiff5-dev build-essential
-# Get Nikon libraries and header from https://github.com/tlambert03/nd2
+
+# Get Nikon libraries and header
+# from https://github.com/tlambert03/nd2
 make getsdk
+
 # install Nikon's libraries so that they can be found duing build and run
 sudo cp lib/*.so /usr/local/lib/
-# compile
-make
-# Install binary and man page i.e. make available system wide
-sudo make install
+
+make release  # compile
+sudo make install   # Install binary and man page
 ```
 
 ## Example usage
 ```
-nd2tool iiQV015_20220630_001.nd2
+$ nd2tool iiQV015_20220630_001.nd2
 3 FOV in 4 channels:
    #1 'A647', λ_em=710.0
    #2 'SpGold', λ_em=572.0
@@ -94,18 +100,13 @@ tiff using [libTIFF](http://www.libtiff.org).
 
 ### Todo
 
- - [ ] Safe writing: Write to temporary file name, and rename to final name when
-       writing is done.
  - [ ] Collect various nd2 files for testing.
  - [ ] Check for inconsistent dz values between image planes (shake detection).
- - [ ] Get permission from Nikon to distribute nd2sdk together
-       with this repo. Request sent 20220701.
- - [ ] check that the channel names are valid file names and possibly
-       convert spaces to underscores. Use toupper or tolower?
- - [ ] Support time series.
+ - [ ] Include the Nikon library in the repo (when permissions are sorted out).
 
 Maybe some day:
-
+ - [ ] Support time series.
+ - [ ] check that the channel names are valid file names?
  - [ ] As an option to the Nikon library, consider adopting from
        [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader).
  - [ ] Write tiff files without the tiff library like on
@@ -113,9 +114,18 @@ Maybe some day:
 
 ### Done
 
- - [x] Correct resolution set when opening in ImageJ.
- - [x] Double check that the image data is 16-bit (will be the only supported).
- - [x] One log file per nd2 image.
+ - [x] Metadata about resolution is transferred from nd2 files to tif
+       files so that the correct resolution is found by ImageJ.
+ - [x] It is checked that the image data is stored as 16-bit,
+       otherwise the program quits.
+ - [x] One log file is written per nd2 image that is converted.
+ - [x] Only keeps one image plane in RAM at the same time in order to
+       keep the memory usage low.
+ - [x] Safe writing: Using a temporary file (using `mkstemp`) for
+       writing. Renaming the temporary file to the final name only
+       after the writing is done. Prevents corrupt file being
+       written. Will leave files like `file.tif_tmp_XXXXXX` upon
+       failure that has to be removed manually.
 
 ### Reporting bugs
 Please use [the issue tracking system on

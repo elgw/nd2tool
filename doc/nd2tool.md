@@ -76,9 +76,10 @@ iiQV015_20220630_001
 ├── SpGold_002.tif
 └── SpGold_003.tif
 ```
-i.e. a new folder with the same name as the input file excluding the file extension
-`.nd2`. Then each Field of View (FOV) and channel will be saved as a separate file
-with the scheme `CHANNEL_FOV.tif` were FOV is padded with 0s to always be three digits.
+i.e. a new folder with the same name as the input file excluding the file
+extension `.nd2`. Then each Field of View (FOV) and channel will be saved as a
+separate file with the scheme `CHANNEL_FOV.tif` were FOV is padded with 0s to
+always be three digits.
 
 
 # NOTES
