@@ -780,12 +780,12 @@ void show_help(char * name)
 
 ntconf_t * ntconf_new(void)
 {
-    ntconf_t * conf = malloc(sizeof(ntconf_t));
+    ntconf_t * conf = calloc(1, sizeof(ntconf_t));
     conf->verbose = 1;
     conf->convert = 1;
     conf->overwrite = 0;
     conf->showinfo = 1;
-    conf->metamode = 0;
+    conf->purpose = CONVERT_TO_TIF;
     conf->meta_file = 0;
     conf->meta_coord = 0;
     conf->meta_frame = 0;
@@ -803,26 +803,26 @@ void ntconf_free(ntconf_t * conf)
 int argparse(ntconf_t * conf, int argc, char ** argv)
 {
     struct option longopts[] = {
-        { "help",   no_argument, NULL, 'h' },
-        { "info", no_argument, NULL, 'i'},
-        { "overwrite", no_argument, NULL, 'o'},
-        { "verbose", required_argument, NULL, 'v'},
-        { "version", no_argument, NULL, 'V'},
-        { "meta", no_argument, NULL, '1'},
-        { "meta-file", no_argument, NULL, '2'},
+        { "help",       no_argument, NULL, 'h'},
+        { "info",       no_argument, NULL, 'i'},
+        { "overwrite",  no_argument, NULL, 'o'},
+        { "verbose",    required_argument, NULL, 'v'},
+        { "version",    no_argument, NULL, 'V'},
+        { "meta",       no_argument, NULL, '1'},
+        { "meta-file",  no_argument, NULL, '2'},
         { "meta-coord", no_argument, NULL, '3'},
         { "meta-frame", no_argument, NULL, '4'},
-        { "meta-text", no_argument, NULL, '5'},
-        { "meta-exp", no_argument, NULL, '6'},
+        { "meta-text",  no_argument, NULL, '5'},
+        { "meta-exp",   no_argument, NULL, '6'},
         { NULL, 0, NULL, 0 }
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "12345hiv:V", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456hiov:V", longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_file = 1;
             conf->meta_coord = 1;
             conf->meta_frame = 1;
@@ -830,23 +830,23 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->meta_exp = 1;
             break;
         case '2':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_file = 1;
             break;
         case '3':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_coord = 1;
             break;
         case '4':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_frame = 1;
             break;
         case '5':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_text = 1;
             break;
         case '6':
-            conf->metamode = 1;
+            conf->purpose = SHOW_METADATA;
             conf->meta_exp = 1;
             break;
         case 'h':
@@ -884,8 +884,8 @@ void showmeta_file(char * file)
     char * fileMeta = Lim_FileGetMetadata(nd2);
     printf("%s\n", fileMeta);
     Lim_FileFreeString(fileMeta);
-
     Lim_FileClose(nd2);
+    return;
 }
 
 void showmeta_coord(char * file)
@@ -913,6 +913,7 @@ void showmeta_coord(char * file)
     free(buffer);
 
     Lim_FileClose(nd2);
+    return;
 }
 
 void showmeta_frame(char * file)
@@ -934,6 +935,7 @@ void showmeta_frame(char * file)
     }
 
     Lim_FileClose(nd2);
+    return;
 }
 
 void showmeta_exp(char * file)
@@ -950,6 +952,7 @@ void showmeta_exp(char * file)
     Lim_FileFreeString(expinfo);
 
     Lim_FileClose(nd2);
+    return;
 }
 
 void showmeta_text(char * file)
@@ -967,6 +970,7 @@ void showmeta_text(char * file)
     Lim_FileFreeString(textinfo);
 
     Lim_FileClose(nd2);
+    return;
 }
 
 
@@ -992,9 +996,11 @@ void showmeta(ntconf_t * conf, char * file)
     {
         showmeta_exp(file);
     }
+    return;
 }
 
-void hello_log(__attribute__((unused)) ntconf_t * conf, nd2info_t * info, int argc, char ** argv)
+void hello_log(__attribute__((unused)) ntconf_t * conf,
+               nd2info_t * info, int argc, char ** argv)
 {
     print_version(info->log);
 
@@ -1020,7 +1026,6 @@ void hello_log(__attribute__((unused)) ntconf_t * conf, nd2info_t * info, int ar
 
 int main(int argc, char ** argv)
 {
-
     check_cmd_line(argc, argv);
 
     ntconf_t * conf = ntconf_new();
@@ -1032,7 +1037,7 @@ int main(int argc, char ** argv)
     /* Process each file */
 
     /* Show some metadata and exit */
-    if(conf->metamode == 1)
+    if(conf->purpose == SHOW_METADATA)
     {
         for(int ff = optind; ff<argc; ff++)
         {

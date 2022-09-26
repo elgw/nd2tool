@@ -47,17 +47,9 @@ The standard procedure: get required libraries, compile and then
 install. These instructions are for Ubuntu 22.04 LTS.
 
 ```
-# install standard libraries
+# get dependencies
 sudo apt-get update
 sudo apt-get install libcjson1 libcjson-dev libtiff5-dev build-essential
-
-# Get Nikon libraries and header
-# from https://github.com/tlambert03/nd2
-make getsdk
-
-# install Nikon's libraries so that they can be found duing build and run
-sudo cp lib/*.so /usr/local/lib/
-
 make release  # compile
 ```
 
@@ -103,9 +95,8 @@ See the [man page](doc/nd2tool.txt) for the full documentation
 
 ## Development
 
-**nd2tool** uses [Nikon's nd2 library](https://www.nd2sdk.com/) to
-extract metadata. Until I get permissions to include it here it can be
-found at [tlambert03/nd2](https://github.com/tlambert03/nd2).
+With permissions, **nd2tool** uses [Nikon's nd2
+library](https://www.nd2sdk.com/) to extract metadata.
 
 The JSON metadata is parsed by
 [cJSON](https://github.com/DaveGamble/cJSON) and images are saved as
@@ -116,18 +107,18 @@ tiff using [libTIFF](http://www.libtiff.org).
 
  - [ ] Collect various nd2 files for testing.
  - [ ] Check for inconsistent dz values between image planes (shake detection).
- - [ ] Include the Nikon library in the repo (when permissions are sorted out).
 
 Maybe some day:
  - [ ] Support time series.
  - [ ] check that the channel names are valid file names?
- - [ ] As an option to the Nikon library, consider adopting from
+ - [ ] As alternative to the Nikon library, consider adopting from
        [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader).
  - [ ] Write tiff files without the tiff library like on
        [fTIFFw](https://github.com/elgw/fTIFFw) for some extra speed.
 
 ### Done
 
+ - [x] Include Nikon's nd2-library in the repo.
  - [x] Metadata about resolution is transferred from nd2 files to tif
        files so that the correct resolution is found by ImageJ.
  - [x] It is checked that the image data is stored as 16-bit,

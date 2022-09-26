@@ -1,9 +1,10 @@
 #!/bin/bash
+set -e # exit on error
 
 NAME="Erik Wernersson"
 EMAIL="https://github.com/elgw/nd2tool/issues"
 
-set -e # exit on error
+
 
 if [ $EUID = 0 ]; then
     echo "WARNING: You are running as root, please abort!"
@@ -45,14 +46,15 @@ cat > $pkgdir/DEBIAN/control << END
 Package: nd2tool
 Version: $pkgver
 Architecture: $arch
+Section: science
 Depends: libcjson1, libtiff5
 Conflicts:
 Maintainer: $NAME <$EMAIL>
 Installed-Size: $size
-Section: custom
 Priority: optional
 Homepage: https://github.com/elgw/nd2tool/
-Description: A command line tool for conversion from nd2 to tif
+Description: nd2tool
+ A command line tool for conversion from nd2 to tif
 END
 
 cd $pkgdir/../

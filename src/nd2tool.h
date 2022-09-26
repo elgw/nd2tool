@@ -3,7 +3,7 @@
 
 #define ND2TOOL_VERSION_MAJOR "0"
 #define ND2TOOL_VERSION_MINOR "0"
-#define ND2TOOL_VERSION_PATCH "3"
+#define ND2TOOL_VERSION_PATCH "4"
 
 #include <assert.h>
 #include <errno.h>
@@ -18,12 +18,15 @@
 /* This is a stripped version of the header file from www.nd2sdk.com
  * where comments are removed.
 */
-// #include "../include/Nd2ReadSdk.h_stripped"
+#include "Nd2ReadSdk_stripped.h"
 
-#include "../include/Nd2ReadSdk.h"
 #include "tiff_util.h"
 #include "json_util.h"
 
+typedef enum {
+    CONVERT_TO_TIF,
+    SHOW_METADATA
+} nt_purpose;
 
 /* General settings */
 typedef struct{
@@ -31,8 +34,7 @@ typedef struct{
     int convert;
     int showinfo;
     int overwrite;
-/* If metadata is to be dumped to stdout */
-    int metamode;
+    nt_purpose purpose;
     int meta_file;
     int meta_coord;
     int meta_frame;
@@ -108,6 +110,7 @@ void file_attrib_free(file_attrib_t * f);
 void metadata_free(metadata_t * m);
 metadata_t * parse_metadata(const char * str);
 file_attrib_t * parse_file_attrib(const char * str);
+
 
 /* RAW metadata extraction without JSON parsing */
 void showmeta(ntconf_t * conf, char * file);
