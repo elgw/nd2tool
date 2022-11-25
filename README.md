@@ -57,8 +57,8 @@ After building, the preferred way to install is to first make a .deb
 file like this:
 
 ```
-./makedeb
-sudo apt-get install ./nd2tool_0.0.3_amd64.deb
+./makedeb_ubuntu_2204.sh
+sudo apt-get install ./nd2tool_0.0.5_amd64.deb
 # Then you can uninstall with
 # sudo apt-get remove nd2tool
 ```
