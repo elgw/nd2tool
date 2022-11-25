@@ -619,6 +619,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                 if(isfile(outname))
                 {
                     printf("Skipping %s (file exists)\n", outname);
+                    fprintf(info->log, "Skipping %s (file exists)\n", outname);
                     goto next_file;
                 }
             }
@@ -696,10 +697,36 @@ void nd2info_print(FILE * fid, const nd2info_t * info)
     fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        fprintf(fid, "   #%d '%s', λ_em=%.1f\n",
+        double l = meta->channels[cc]->emissionLambdaNm;
+        l < 425 ? l = 425 : 0;
+        l > 650 ? l = 650 : 0;
+        double RGB[3] = {0,0,0};
+        srgb_from_lambda(l, RGB);
+
+        if(fid == stdout)
+        {
+            fprintf(fid, "\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm   \e[0m",
+                   (int) round(255.0 - 255.0*RGB[0]),
+                   (int) round(255.0 - 255.0*RGB[1]),
+                   (int) round(255.0 - 255.0*RGB[2]),
+                   (int) round(255.0*RGB[0]),
+                   (int) round(255.0*RGB[1]),
+                   (int) round(255.0*RGB[2]));
+        } else {
+            fprintf(fid, "   ");
+        }
+        fprintf(fid, "#%d '%s', λ_em=%.1f",
                 cc+1,
                 meta->channels[cc]->name,
                 meta->channels[cc]->emissionLambdaNm);
+
+        fprintf(fid, " approx. RGB %.2f, %.2f, %.2f or #%02X%02X%02X",
+                RGB[0], RGB[1], RGB[2],
+                (int) round(255.0*RGB[0]),
+                (int) round(255.0*RGB[1]),
+                (int) round(255.0*RGB[2]));
+        fprintf(fid, "\n");
+
     }
 
     int cc = 0;

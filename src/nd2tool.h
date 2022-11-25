@@ -3,7 +3,7 @@
 
 #define ND2TOOL_VERSION_MAJOR "0"
 #define ND2TOOL_VERSION_MINOR "0"
-#define ND2TOOL_VERSION_PATCH "4"
+#define ND2TOOL_VERSION_PATCH "5"
 
 #include <assert.h>
 #include <errno.h>
@@ -22,6 +22,7 @@
 
 #include "tiff_util.h"
 #include "json_util.h"
+#include "srgb_from_lambda.h"
 
 typedef enum {
     CONVERT_TO_TIF,
