@@ -3,6 +3,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 /* Convert a wave length given in nm to a RGB triplet where each value

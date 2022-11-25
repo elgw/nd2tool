@@ -690,6 +690,43 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     return EXIT_SUCCESS;
 }
 
+
+/* Show four blank spaces coloured by RGB
+ * if fid != stdout, writes "    ".
+ * if lambda < 400, show " uv ", if lambda > 700, show " ir "
+ */
+static void show_color(FILE * fid, double * RGB, double lambda)
+{
+    char ir_type[] = "ir";
+    char uv_type[] = "uv";
+    char vis_type[] = "  ";
+
+    char * type_str = vis_type;
+
+    if(lambda < 400)
+    {
+        type_str = uv_type;
+    }
+    if(lambda > 700)
+    {
+        type_str = ir_type;
+    }
+
+    if(fid == stdout)
+    {
+        fprintf(fid, "\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm %s \e[0m",
+                (int) round(255.0 - 255.0*RGB[0]),
+                (int) round(255.0 - 255.0*RGB[1]),
+                (int) round(255.0 - 255.0*RGB[2]),
+                (int) round(255.0*RGB[0]),
+                (int) round(255.0*RGB[1]),
+                (int) round(255.0*RGB[2]),
+                type_str);
+    } else {
+        fprintf(fid, " %s ", type_str);
+    }
+}
+
 void nd2info_print(FILE * fid, const nd2info_t * info)
 {
     metadata_t * meta = info->meta_att;
@@ -697,24 +734,15 @@ void nd2info_print(FILE * fid, const nd2info_t * info)
     fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        double l = meta->channels[cc]->emissionLambdaNm;
-        l < 425 ? l = 425 : 0;
-        l > 650 ? l = 650 : 0;
+        double lambda = meta->channels[cc]->emissionLambdaNm;
         double RGB[3] = {0,0,0};
+        double l = lambda;
+        l > 650 ? l = 650 : 0;
+        l < 425 ? l = 425 : 0;
         srgb_from_lambda(l, RGB);
 
-        if(fid == stdout)
-        {
-            fprintf(fid, "\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm   \e[0m",
-                   (int) round(255.0 - 255.0*RGB[0]),
-                   (int) round(255.0 - 255.0*RGB[1]),
-                   (int) round(255.0 - 255.0*RGB[2]),
-                   (int) round(255.0*RGB[0]),
-                   (int) round(255.0*RGB[1]),
-                   (int) round(255.0*RGB[2]));
-        } else {
-            fprintf(fid, "   ");
-        }
+        show_color(fid, RGB, lambda);
+
         fprintf(fid, "#%d '%s', λ_em=%.1f",
                 cc+1,
                 meta->channels[cc]->name,
