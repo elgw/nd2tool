@@ -732,6 +732,14 @@ void nd2info_print(FILE * fid, const nd2info_t * info)
     metadata_t * meta = info->meta_att;
     int nFOV = info->nFOV;
     fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
+
+    int chanlen = 0;
+    for(int cc = 0; cc < meta->nchannels; cc++)
+    {
+        int len = strlen(meta->channels[cc]->name);
+        len > chanlen ? chanlen = len : 0;
+    }
+
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
         double lambda = meta->channels[cc]->emissionLambdaNm;
@@ -741,18 +749,18 @@ void nd2info_print(FILE * fid, const nd2info_t * info)
         l < 425 ? l = 425 : 0;
         srgb_from_lambda(l, RGB);
 
-        show_color(fid, RGB, lambda);
 
-        fprintf(fid, "#%d '%s', λ_em=%.1f",
+        fprintf(fid, "   #%d '%*s', λ_em=%.1f",
                 cc+1,
+                chanlen,
                 meta->channels[cc]->name,
                 meta->channels[cc]->emissionLambdaNm);
 
-        fprintf(fid, " approx. RGB %.2f, %.2f, %.2f or #%02X%02X%02X",
-                RGB[0], RGB[1], RGB[2],
+        fprintf(fid, " #%02X%02X%02X ",
                 (int) round(255.0*RGB[0]),
                 (int) round(255.0*RGB[1]),
                 (int) round(255.0*RGB[2]));
+        show_color(fid, RGB, lambda);
         fprintf(fid, "\n");
 
     }
