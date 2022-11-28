@@ -464,7 +464,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
      * information about sensor, camera, scope, tempertures etc.  Also a
      * line like "Dimensions: XY(11) x λ(2) x Z(51)" -- the loop
      * order. Can that be determined from the other metadata?  Note that
-     * the line like "- Step: 0,3 µm" is rounded to 1 decimal and should
+     * the line like "- Step: 0.3 µm" is rounded to 1 decimal and should
      * not be used.
      */
     char * textinfo = Lim_FileGetTextinfo(nd2);
@@ -474,6 +474,9 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
         printf("# Lim_FileGetTextinfo\n");
         printf("%s\n", textinfo);
     }
+
+    /* The loopstring is not always available
+     * that information should be available in meta-exp? */
     char * token = strtok(textinfo, "\n");
     while( token != NULL ) {
         if(strncmp(token, "Dimensions:", 11) == 0)
@@ -483,6 +486,11 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
         token = strtok(NULL, "\n");
     }
     free(token);
+
+    if(info->loopstring == NULL)
+    {
+        info->loopstring = strdup("Not available");
+    }
 
     Lim_FileFreeString(textinfo);
 
@@ -605,13 +613,13 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
      * slightly slower than extracting all channels for a given FOV at
      * a time but gives more predictable memory usage. */
 
-    for(int ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
-        for(int cc = 0; cc<nchan; cc++) /* For each channel */
+        for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
             char * outname = malloc(1024);
-            sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
+            sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
             if(conf->overwrite == 0)
@@ -641,7 +649,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 
             tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P);
 
-            for(int kk = 0; kk<P; kk++) /* For each plane */
+            for(int64_t kk = 0; kk<P; kk++) /* For each plane */
             {
                 /* Returns interlaced data */
                 int res = Lim_FileGetImageData(nd2,
@@ -659,7 +667,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                 }
                 uint16_t * pixels = (uint16_t *) pic->pImageData;
 
-                for(int pp = 0; pp<M*N; pp++)
+                for(int64_t pp = 0; pp<M*N; pp++)
                 {
                     S[pp] = pixels[pp*nchan+cc];
                 }

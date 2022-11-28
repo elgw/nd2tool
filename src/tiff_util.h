@@ -28,9 +28,9 @@ typedef struct{
     char * IJIJinfo; // Tag 50839 contains a string, used by Imagej.
     uint32_t nIJIJinfo;
     // Image size
-    int M;
-    int N;
-    int P;
+    int64_t M;
+    int64_t N;
+    int64_t P;
 } ttags;
 
 // new with everything set to defaults
@@ -44,10 +44,10 @@ void ttags_set_pixelsize_nm(ttags *, double, double, double);
 void ttags_free(ttags **);
 
 typedef struct{
-    int M;
-    int N;
-    int P;
-    int dd; // Slice to write
+    int64_t M;
+    int64_t N;
+    int64_t P;
+    int64_t dd; // Slice to write
     TIFF * out;
 } tiff_writer_t;
 

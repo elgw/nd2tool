@@ -33,7 +33,7 @@ tiff_writer_t * tiff_writer_init(const char * fName,
     if(M*N*P*sizeof(uint16_t) >= pow(2, 32))
     {
         sprintf(formatString, "w8\n");
-        fprintf(stdout, "tim_tiff: File is > 2 GB, using BigTIFF format\n");
+        // fprintf(stdout, "tim_tiff: File is > 2 GB, using BigTIFF format\n");
     }
 
     tw->out = TIFFOpen(fName, formatString);
@@ -48,7 +48,7 @@ int tiff_writer_write(tiff_writer_t * tw, uint16_t * slice)
     if(tw->dd == tw->P)
     {
         fprintf(stderr, "Error: Trying to write too many slices\n"
-                "%d slices were expected and %d has already been written\n",
+                "%ld slices were expected and %ld has already been written\n",
                 tw->P, tw->dd);
         fprintf(stderr, "In %s, line %d\n", __FILE__, __LINE__);
         exit(EXIT_FAILURE);
@@ -71,11 +71,13 @@ int tiff_writer_write(tiff_writer_t * tw, uint16_t * slice)
 
     for(size_t kk = 0; kk < (size_t) tw->M; kk++)
     {
-        uint16_t * line = slice + tw->M*kk;
+        //printf("kk = %zu\n", kk); fflush(stdout);
+        uint16_t * line = slice + tw->N*kk;
         int ok = TIFFWriteScanline(tw->out, // TIFF
                                    line, //buf,
                                    kk, // row
                                    0); //sample
+        //usleep(1000);
         if(ok != 1)
         {
             fprintf(stderr, "fim_tiff ERROR: TIFFWriteScanline failed\n");
@@ -93,78 +95,6 @@ int tiff_writer_finish(tiff_writer_t * tw)
     free(tw);
     return 0;
 }
-
-int u16_to_tiff(const char * fName, uint16_t * V,
-                ttags * T,
-                int64_t N, int64_t M, int64_t P)
-{
-
-    //    size_t bytesPerSample = sizeof(uint16_t);
-    char formatString[4] = "w";
-    if(M*N*P*sizeof(uint16_t) >= pow(2, 32))
-    {
-        sprintf(formatString, "w8\n");
-        fprintf(stdout, "tim_tiff: File is > 2 GB, using BigTIFF format\n");
-    }
-
-    TIFF* out = TIFFOpen(fName, formatString);
-    assert(out != NULL);
-    ttags_set(out, T);
-
-    //size_t linbytes = (M+N)*bytesPerSample;
-    //uint16_t * buf = _TIFFmalloc(linbytes);
-    //    memset(buf, 0, linbytes);
-
-    for(size_t dd = 0; dd < (size_t) P; dd++)
-    {
-
-
-        TIFFSetField(out, TIFFTAG_IMAGEWIDTH, N);  // set the width of the image
-        TIFFSetField(out, TIFFTAG_IMAGELENGTH, M);    // set the height of the image
-        TIFFSetField(out, TIFFTAG_SAMPLESPERPIXEL, 1);   // set number of channels per pixel
-        TIFFSetField(out, TIFFTAG_BITSPERSAMPLE, 16);    // set the size of the channels
-        TIFFSetField(out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);    // set the origin of the image.
-        //   Some other essential fields to set that you do not have to understand for now.
-        TIFFSetField(out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
-        TIFFSetField(out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_MINISBLACK);
-        TIFFSetField(out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
-        // TODO TIFFSSetFieldTIFFTAG_SOFTWARE
-
-        /* We are writing single page of the multipage file */
-        TIFFSetField(out, TIFFTAG_SUBFILETYPE, FILETYPE_PAGE);
-        /* Set the page number */
-        TIFFSetField(out, TIFFTAG_PAGENUMBER, dd, P);
-
-
-        for(size_t kk = 0; kk < (size_t) M; kk++)
-        {
-            uint16_t * line = V + M*N*dd + kk*N;
-            //buf = V + M*N*dd + kk*N;
-            /*
-              for(size_t ll = 0; ll < (size_t) N; ll++)
-              {
-              buf[ll] = V[M*N*dd + kk*N + ll];
-              }
-            */
-            int ok = TIFFWriteScanline(out, // TIFF
-                                       line, //buf,
-                                       kk, // row
-                                       0); //sample
-            if(ok != 1)
-            {
-                fprintf(stderr, "fim_tiff ERROR: TIFFWriteScanline failed\n");
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        TIFFWriteDirectory(out);
-    }
-
-
-    TIFFClose(out);
-    return 0;
-}
-
 
 ttags * ttags_new()
 {
@@ -215,7 +145,7 @@ void ttags_set_pixelsize_nm(ttags * T, double xres, double yres, double zres)
     T->imagedescription = malloc(1024);
 
     sprintf(T->imagedescription,
-            "ImageJ=1.52r\nimages=%d\nslices=%d\nunit=nm\nspacing=%.1f\nloop=false.",
+            "ImageJ=1.52r\nimages=%ld\nslices=%ld\nunit=nm\nspacing=%.1f\nloop=false.",
             T->P, T->P, T->zresolution);
 }
 
