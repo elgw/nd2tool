@@ -205,7 +205,7 @@ metadata_t * parse_metadata(const char * str)
         m->channels[cc]->name = get_json_string(j_chan, "name");
         assert(m->channels[cc] != NULL);
         get_json_double(j_chan,
-                           "emissionLambdaNm",
+                        "emissionLambdaNm",
                         &m->channels[cc]->emissionLambdaNm);
 
         { /* Pixel size and image size */
@@ -369,7 +369,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
 
     //LIMFILEAPI LIMSIZE         Lim_FileGetCoordSize(LIMFILEHANDLE hFile);
     int csize = Lim_FileGetCoordSize(nd2);
-    if(conf->verbose > 1)
+    if(conf->verbose > 2)
     {
         printf("# Lim_FileGetCoordSize\n");
         printf("%d\n", csize);
@@ -392,7 +392,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
         char * buffer = malloc(buffsize);
         int dsize = Lim_FileGetCoordInfo(nd2, kk, buffer, buffsize);
 
-        if(conf->verbose > 1)
+        if(conf->verbose > 2)
         {
             printf("# Lim_FileGetCoordInfo for dim %d\n", kk);
             printf("%d\n %s\n", dsize, buffer);
@@ -413,7 +413,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
 
             if(strcmp(buffer, "ZStackLoop") == 0)
             {
-                if(conf->verbose > 1)
+                if(conf->verbose > 2)
                 {
                     printf("Last loop is of type ZStackLoop -- good!\n");
                 }
@@ -452,7 +452,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     for(int kk = 0; kk<seqCount; kk++)
     {
         char * info = Lim_FileGetFrameMetadata(nd2, kk);
-        if(conf->verbose > 1)
+        if(conf->verbose > 2)
         {
             printf("# FileGetFrameMetadata for image %d\n", kk);
             printf("%s\n", info);
@@ -536,9 +536,9 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     info->outfolder = strdup(info->filename);
     info->outfolder = basename(info->outfolder);
     remove_file_ext(info->outfolder);
-    if(conf->verbose > 1)
+    if(conf->verbose > 2)
     {
-        printf("Will create %s\n", info->outfolder);
+        printf("Will create folder '%s'\n", info->outfolder);
     }
 
 
@@ -576,9 +576,9 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                 info->logfile);
         exit(EXIT_FAILURE);
     }
+    /* A newline will separate what is written to the log this time to
+       what was already written. */
     fprintf(info->log, "\n");
-    fprintf(info->log, "Input file: %s\n", info->filename);
-
 
     /* Prepare metadata for the tiff files */
     ttags * tags = ttags_new();
@@ -1124,6 +1124,7 @@ int main(int argc, char ** argv)
         printf("error: No file(s) given\n");
         exit(EXIT_FAILURE);
     }
+
     for(int ff = optind; ff<argc; ff++)
     {
         if(nfiles > 1 && conf->verbose > 0)
@@ -1161,24 +1162,32 @@ int main(int argc, char ** argv)
                         "improve the program.\n", argv[ff]);
             }
         }
-
+        /* Might jump directly here if an error occurred  */
     cleanup_file: ;
         /* Clean up */
         nd2info_free(info);
     }
 
- done: ;
+    /* Print out peak memory usage */
     size_t mem = get_peakMemoryKB();
-    if(conf->verbose > 1)
+
+    if(mem > 0)
     {
-        if(mem > 0)
+        if(conf->verbose > 1)
         {
             printf("Done! Used %zu kb of RAM\n", mem);
-        } else {
+        }
+    } else {
+        if(conf->verbose > 1)
+        {
             printf("Done! But failed to measure RAM usage\n");
         }
     }
 
+
+
+    /* Final cleanup */
+ done: ;
     ntconf_free(conf);
     return EXIT_SUCCESS;
 }

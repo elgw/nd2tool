@@ -30,21 +30,12 @@ Current Limitations:
  - Linux only.
  - Does not cover all edge cases, have a look at the
 [references](#references) to find the best tool for you.
- - Does not do any corrections to the image data.
-
-Project goals
- 1. Provide a small (at the moment < 3 Mb including the Nikon
-    libraries) and stable command line tool for the basic things that
-    I need to do with nd2 files.
- 2. Keep the number of dependencies small and only use standard
-    packages.
- 3. Add features on demand.
-
 
 ## Installation
 
 The standard procedure: get required libraries, compile and then
-install. These instructions are for Ubuntu 22.04 LTS.
+install. These instructions are for Ubuntu 22.04 LTS (might work on
+WSL for Windows as well).
 
 ```
 # get dependencies
@@ -58,12 +49,13 @@ file like this:
 
 ```
 ./makedeb_ubuntu_2204.sh
-sudo apt-get install ./nd2tool_0.0.5_amd64.deb
+sudo apt-get install ./nd2tool_*.deb
 # Then you can uninstall with
 # sudo apt-get remove nd2tool
 ```
 
-Alternatively this could also be used:
+Alternatively this could also be used, please check the `makefile` so
+that the install paths makes sense on your machine.
 ```
 sudo make install   # Install binary and man page
 ```
@@ -92,49 +84,11 @@ Writing to iiQV015_20220630_001/dapi_003.tif
 See the [man page](doc/nd2tool.txt) for the full documentation
 (i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
 
-
-## Development
-
-With permissions, **nd2tool** uses [Nikon's nd2
-library](https://www.nd2sdk.com/) to extract metadata.
-
-The JSON metadata is parsed by
-[cJSON](https://github.com/DaveGamble/cJSON) and images are saved as
-tiff using [libTIFF](http://www.libtiff.org).
-
-
-### Todo
-
- - [ ] Collect various nd2 files for testing.
- - [ ] Check for inconsistent dz values between image planes (shake detection).
-
-Maybe some day:
- - [ ] Support time series.
- - [ ] check that the channel names are valid file names?
- - [ ] As alternative to the Nikon library, consider adopting from
-       [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader).
- - [ ] Write tiff files without the tiff library like on
-       [fTIFFw](https://github.com/elgw/fTIFFw) for some extra speed.
-
-### Done
-
- - [x] Include Nikon's nd2-library in the repo.
- - [x] Metadata about resolution is transferred from nd2 files to tif
-       files so that the correct resolution is found by ImageJ.
- - [x] It is checked that the image data is stored as 16-bit,
-       otherwise the program quits.
- - [x] One log file is written per nd2 image that is converted.
- - [x] Only keeps one image plane in RAM at the same time in order to
-       keep the memory usage low.
- - [x] Safe writing: Using a temporary file (using `mkstemp`) for
-       writing. Renaming the temporary file to the final name only
-       after the writing is done. Prevents corrupt file being
-       written. Will leave files like `file.tif_tmp_XXXXXX` upon
-       failure that has to be removed manually.
-
-### Reporting bugs
+## Reporting bugs
 Please use [the issue tracking system on
-github](https://github.com/elgw/nd2tool/issues) to report bugs.
+github](https://github.com/elgw/nd2tool/issues) to report bugs. Please
+have a look on the [roadmap](ROADMAP.md) before submitting suggestions
+or making pull requests.
 
 ## References
  - [Interactively explore JSON
@@ -163,5 +117,6 @@ Python libraries/tools for nd2 files:
 Libraries used by **nd2tool**:
  - [cJSON](https://github.com/DaveGamble/cJSON) for parsing JSON data.
  - [libTIFF](http://www.libtiff.org) for writing tif files.
- - [Nikon's nd2 library](https://www.nd2sdk.com/) for reading nd2 files.
+ - [Nikon's nd2 library](https://www.nd2sdk.com/) for reading nd2
+   files (with permission to redistribute the shared objects).
  - [the GNU C library](https://www.gnu.org/software/libc/)

@@ -16,7 +16,8 @@ conversion.
 : Display basic information from the metadata but do no conversion
 
 **-v l**, **\--verbose l**
-: Set verbosity level to l. 0=quite, 1=normal, >1 extra.
+: Set verbosity level to l. 0=quite, 1=normal, >1 show memory usage
+  etc >2 also dump meta data as it is read.
 
 **-o**, **\--overwrite**
 : Overwrite existing tif files.

@@ -2,8 +2,8 @@
 #define __nd2tool_h__
 
 #define ND2TOOL_VERSION_MAJOR "0"
-#define ND2TOOL_VERSION_MINOR "0"
-#define ND2TOOL_VERSION_PATCH "5"
+#define ND2TOOL_VERSION_MINOR "1"
+#define ND2TOOL_VERSION_PATCH "0"
 
 #include <assert.h>
 #include <errno.h>
