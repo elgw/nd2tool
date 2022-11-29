@@ -18,7 +18,7 @@ on time series at all (feel free to share your data).
 [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader).
 - [ ] Write tiff files without the tiff library like on
 [fTIFFw](https://github.com/elgw/fTIFFw) for some extra speed.
-
+- [ ] bash auto-completion.
 - [ ] Option to export as multi-color tif files.
 - [ ] Option to export one file per FOV, channel and z-pos.
 

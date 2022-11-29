@@ -21,6 +21,7 @@ that suits you better in the [references](#references).
 
 ## Example usage
 ```
+$ nd2tool iiQV015_20220630_001.nd2
 3 FOV in 4 channels:
    #1 '  A647', λ_em=710.0 #E10000  ir
    #2 'SpGold', λ_em=572.0 #FFFF00
@@ -78,12 +79,6 @@ get in touch. Have a look on the [roadmap](ROADMAP.md) before
 submitting suggestions or making pull requests.
 
 ## References
-- [Interactively explore JSON
-data](https://jsonformatter.org/json-viewer) Copy and paste the
-JSON output from nd2tool (**--meta-file**, **--meta-frame**,
-**--meta-exp**) here for a quick overview. See also [JSON
-specification](https://www.json.org/) if you are new to this.
-
 Alternative command line tools for nd2 files:
 - [ggirelli/radiantkit](https://github.com/ggirelli/radiantkit) - Command line
 tool for conversion from nd2 to tiff as well as lots of other
@@ -107,3 +102,10 @@ Libraries used by **nd2tool**:
 - [Nikon's nd2 library](https://www.nd2sdk.com/) for reading nd2
 files (with permission to redistribute the shared objects).
 - [the GNU C library](https://www.gnu.org/software/libc/)
+
+Related/useful:
+- [Interactively explore JSON
+data](https://jsonformatter.org/json-viewer) Copy and paste the
+JSON output from nd2tool (**--meta-file**, **--meta-frame**,
+**--meta-exp**) here for a quick overview. See also [JSON
+specification](https://www.json.org/) if you are new to this.
