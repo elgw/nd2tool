@@ -20,13 +20,12 @@ that suits you better in the [references](#references).
 - only supports data stored as 16-bit unsigned int.
 
 ## Example usage
-
-<pre>
+``` shell
 3 FOV in 4 channels:
-#1 &apos;  A647&apos;, λ_em=710.0 #E10000 <span style="background-color:#E10000"><font color="#1EFFFF"> ir </font></span>
-#2 &apos;SpGold&apos;, λ_em=572.0 #FFFF00 <span style="background-color:#FFFF00"><font color="#0000FF">    </font></span>
-#3 &apos;  A488&apos;, λ_em=543.0 #00FF00 <span style="background-color:#00FF00"><font color="#FF00FF">    </font></span>
-#4 &apos;  dapi&apos;, λ_em=385.0 #8900FF <span style="background-color:#8900FF"><font color="#76FF00"> uv </font></span>
+   #1 '  A647', λ_em=710.0 #E10000  ir
+   #2 'SpGold', λ_em=572.0 #FFFF00
+   #3 '  A488', λ_em=543.0 #00FF00
+   #4 '  dapi', λ_em=385.0 #8900FF  uv
 Bits per pixel: 16, significant: 16
 dx=324.5 nm, dy=324.5 nm, dz=300.0 nm
 NA=0.750, ni=1.000
@@ -38,7 +37,7 @@ Writing to iiQV015_20220630_001/A647_001.tif
 Writing to iiQV015_20220630_001/SpGold_001.tif
 ...
 Writing to iiQV015_20220630_001/dapi_003.tif
-</pre>
+```
 
 See the [man page](doc/nd2tool.txt) for the full documentation
 (i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
