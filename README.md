@@ -1,14 +1,5 @@
 # nd2tool
 
- - [Introduction](#introduction)
- - [Installation](#installation)
- - [Example usage](#example-usage)
- - [Development](#development)
-   - [Todo](#todo)
-   - [Done](#done)
-   - [Reporting bugs](#reporting-bugs)
- - [References](#references)
-
 ## Introduction
 Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that
 can be used to:
@@ -21,15 +12,36 @@ can be used to:
     read and write one image plane at a time can convert large files
     using little RAM, for example a 23 GB ND2 image can typically be
     converted to till files using less than 100 Mb of RAM.
+nd2tool ...
+ - should be considered as **experimental** since it is only tested on
+    a few images. You could help by sharing your data or find a tool
+    that suits you better in the [references](#references).
+ - only supports loops over XY, Color and Z, i.e., not over time.
+ - only supports data stored as 16-bit unsigned int.
 
-Current Limitations:
- - To be considered as **experimental** since it is only tested on a
-    few images.
- - Only supports loops over XY, Color and Z, i.e., not over time.
- - Only supports data stored as 16-bit unsigned int.
- - Linux only.
- - Does not cover all edge cases, have a look at the
-[references](#references) to find the best tool for you.
+## Example usage
+```
+$ nd2tool iiQV015_20220630_001.nd2
+3 FOV in 4 channels:
+   #1 'A647', λ_em=710.0
+   #2 'SpGold', λ_em=572.0
+   #3 'A488', λ_em=543.0
+   #4 'dapi', λ_em=385.0
+Bits per pixel: 16, significant: 16
+dx=324.5 nm, dy=324.5 nm, dz=300.0 nm
+NA=0.750, ni=1.000
+Objective Name: Plan Apo VC 20x DIC N2
+Objective Magnification: 20.0X
+Volume size: 2048 x 2048 x 241
+Looping: Dimensions: XY(3) x λ(4) x Z(241)
+Writing to iiQV015_20220630_001/A647_001.tif
+Writing to iiQV015_20220630_001/SpGold_001.tif
+...
+Writing to iiQV015_20220630_001/dapi_003.tif
+```
+
+See the [man page](doc/nd2tool.txt) for the full documentation
+(i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
 
 ## Installation
 
@@ -60,35 +72,11 @@ that the install paths makes sense on your machine.
 sudo make install   # Install binary and man page
 ```
 
-## Example usage
-```
-$ nd2tool iiQV015_20220630_001.nd2
-3 FOV in 4 channels:
-   #1 'A647', λ_em=710.0
-   #2 'SpGold', λ_em=572.0
-   #3 'A488', λ_em=543.0
-   #4 'dapi', λ_em=385.0
-Bits per pixel: 16, significant: 16
-dx=324.5 nm, dy=324.5 nm, dz=300.0 nm
-NA=0.750, ni=1.000
-Objective Name: Plan Apo VC 20x DIC N2
-Objective Magnification: 20.0X
-Volume size: 2048 x 2048 x 241
-Looping: Dimensions: XY(3) x λ(4) x Z(241)
-Writing to iiQV015_20220630_001/A647_001.tif
-Writing to iiQV015_20220630_001/SpGold_001.tif
-...
-Writing to iiQV015_20220630_001/dapi_003.tif
-```
-
-See the [man page](doc/nd2tool.txt) for the full documentation
-(i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
-
 ## Reporting bugs
 Please use [the issue tracking system on
-github](https://github.com/elgw/nd2tool/issues) to report bugs. Please
-have a look on the [roadmap](ROADMAP.md) before submitting suggestions
-or making pull requests.
+github](https://github.com/elgw/nd2tool/issues) to report bugs or to
+get in touch. Have a look on the [roadmap](ROADMAP.md) before
+submitting suggestions or making pull requests.
 
 ## References
  - [Interactively explore JSON
