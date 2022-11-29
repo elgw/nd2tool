@@ -20,7 +20,7 @@ that suits you better in the [references](#references).
 - only supports data stored as 16-bit unsigned int.
 
 ## Example usage
-``` shell
+```
 3 FOV in 4 channels:
    #1 '  A647', λ_em=710.0 #E10000  ir
    #2 'SpGold', λ_em=572.0 #FFFF00
