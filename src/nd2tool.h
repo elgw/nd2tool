@@ -36,6 +36,7 @@ typedef struct{
     int showinfo;
     int overwrite;
     nt_purpose purpose;
+    char * fov_string; /* Specifying what fov to use */
     int meta_file;
     int meta_coord;
     int meta_frame;
@@ -43,6 +44,7 @@ typedef struct{
     int meta_exp;
     /* Index of first argument not consumed by getopt_long */
     int optind;
+
 } ntconf_t;
 
 ntconf_t * ntconf_new(void);

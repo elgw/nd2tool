@@ -615,6 +615,13 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 
     for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
+        if(conf->fov_string != NULL)
+        {
+            if(atoi(conf->fov_string) != (ff+1))
+            {
+                continue;
+            }
+        }
         for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
@@ -834,6 +841,7 @@ void show_help(char * name)
     printf("  -h, --help\n\t Show this message and quit\n");
     printf("  -o, --overwrite\n\t Overwrite existing tif files. Default: %d.\n",
            conf->overwrite);
+    printf(" --fov n\n\t Only extract Field Of View #n\n");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -856,6 +864,7 @@ ntconf_t * ntconf_new(void)
     conf->convert = 1;
     conf->overwrite = 0;
     conf->showinfo = 1;
+    conf->fov_string = NULL;
     conf->purpose = CONVERT_TO_TIF;
     conf->meta_file = 0;
     conf->meta_coord = 0;
@@ -868,6 +877,10 @@ ntconf_t * ntconf_new(void)
 
 void ntconf_free(ntconf_t * conf)
 {
+    if(conf->fov_string != NULL)
+    {
+        free(conf->fov_string);
+    }
     free(conf);
 }
 
@@ -879,6 +892,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
         { "overwrite",  no_argument, NULL, 'o'},
         { "verbose",    required_argument, NULL, 'v'},
         { "version",    no_argument, NULL, 'V'},
+        { "fov",        required_argument, NULL, 'F'},
         { "meta",       no_argument, NULL, '1'},
         { "meta-file",  no_argument, NULL, '2'},
         { "meta-coord", no_argument, NULL, '3'},
@@ -889,7 +903,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456hiov:V", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456Fhiov:V", longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
@@ -919,6 +933,9 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
         case '6':
             conf->purpose = SHOW_METADATA;
             conf->meta_exp = 1;
+            break;
+        case 'F':
+            conf->fov_string = strdup(optarg);
             break;
         case 'h':
             show_help(argv[0]);
