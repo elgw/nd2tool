@@ -3,7 +3,7 @@
 
 #define ND2TOOL_VERSION_MAJOR "0"
 #define ND2TOOL_VERSION_MINOR "1"
-#define ND2TOOL_VERSION_PATCH "1"
+#define ND2TOOL_VERSION_PATCH "2"
 
 #include <assert.h>
 #include <errno.h>
@@ -34,6 +34,7 @@ typedef struct{
     int verbose;
     int convert;
     int showinfo;
+    int showcoords;
     int overwrite;
     nt_purpose purpose;
     char * fov_string; /* Specifying what fov to use */
@@ -45,6 +46,8 @@ typedef struct{
     /* Index of first argument not consumed by getopt_long */
     int optind;
     int shake;
+    int dry; /* TODO: Dry run -- don't write anything */
+
 } ntconf_t;
 
 ntconf_t * ntconf_new(void);
@@ -124,7 +127,7 @@ void parse_stagePosition(const char * frameMeta, int nchannels, double * pos);
 
 void check_stage_position(nd2info_t * info, int fov, int channel);
 
-/* RAW metadata extraction without JSON parsing */
+/* RAW metadata extraction without JSON parsing  */
 void showmeta(ntconf_t * conf, char * file);
 void showmeta_file(char *);
 void showmeta_coord(char *);
@@ -135,6 +138,9 @@ void showmeta_exp(char *);
 /* Convert to tif and place in the outfolder. The outfolder has to
    exist. */
 int nd2_to_tiff(ntconf_t *, nd2info_t *);
+
+/* Show XYZ coordinates of all images in csv format */
+void nd2_show_coordinates(nd2info_t * info);
 
 /* Write some initial information to the log file, info->log */
 void hello_log(ntconf_t * conf, nd2info_t * info, int argc, char ** argv);

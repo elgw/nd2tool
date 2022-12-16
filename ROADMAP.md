@@ -8,9 +8,9 @@ tools.
 
 - [ ] Collect various nd2 files for testing, at the moment not tested
 on time series at all (feel free to share your data).
-- [ ] Check for inconsistent dz values between image planes (shake detection).
 - [ ] Indicate where the most in focus slice is.
 - [ ] Support MACOS
+- [ ] Warn/indicate of images are overlapping.
 
 ## Maybe some day
 - [ ] check that the channel names are valid file names?
@@ -23,6 +23,9 @@ on time series at all (feel free to share your data).
 - [ ] Option to export one file per FOV, channel and z-pos.
 
 ## Done
+- [x] Check for inconsistent dz values between image planes (shake
+      detection with **--shake**).
+- [x] Export position of images as csv file (**--coord**).
 - [x] Supports writing BigTIFF images, i.e., > 2 Gb (at least one
 image of size 14607 x 14645 x 17 worked out fine).
 - [x] Include Nikon's nd2-library in the repo.

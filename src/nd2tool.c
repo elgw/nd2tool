@@ -926,7 +926,7 @@ void show_help(char * name)
     ntconf_t * conf = ntconf_new();
 
     printf("Usage: ");
-    printf("%s [--info] [--help] file1.nd2 file2.nd2 ...\n",
+    printf("%s [--info] [--coords] [--help] file1.nd2 file2.nd2 ...\n",
            name);
     printf("Convert Nikon nd2 file(s) to tif file(s) or just show some metadata.\n");
     printf("\n");
@@ -938,7 +938,9 @@ void show_help(char * name)
     printf("  -h, --help\n\t Show this message and quit\n");
     printf("  -o, --overwrite\n\t Overwrite existing tif files. Default: %d.\n",
            conf->overwrite);
-    printf(" --fov n\n\t Only extract Field Of View #n\n");
+    printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
+    printf("  -s, --shake\n\t Enable experimental shake detection\n");
+    printf("  --fov n\n\t Only extract Field Of View #n\n");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -985,6 +987,7 @@ void ntconf_free(ntconf_t * conf)
 int argparse(ntconf_t * conf, int argc, char ** argv)
 {
     struct option longopts[] = {
+        { "coord",      no_argument, NULL, 'c'},
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
@@ -1002,7 +1005,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fhiosv:V", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456Fchiosv:V", longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
@@ -1032,6 +1035,11 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
         case '6':
             conf->purpose = SHOW_METADATA;
             conf->meta_exp = 1;
+            break;
+        case 'c':
+            conf->showcoords = 1;
+            conf->shake = 1;
+            conf->verbose = 0;
             break;
         case 'F':
             conf->fov_string = strdup(optarg);
@@ -1247,6 +1255,37 @@ void hello_log(__attribute__((unused)) ntconf_t * conf,
     return;
 }
 
+void nd2_show_coordinates(nd2info_t * info)
+{
+    /* see check_stage_position */
+    int nchan = info->meta_att->nchannels;
+    int nfov = info->nFOV;
+    int nplane = info->meta_att->channels[0]->P;
+    double * _XYZ = info->meta_frame->stagePositionUm;
+    assert(_XYZ != NULL);
+
+    printf("FOV, Channel, Z, X_um, Y_um, Z_um\n");
+    for(int fov = 0; fov < nfov; fov++)
+    {
+        for(int cc = 0; cc < nchan; cc++)
+        {
+            for(int zz = 0; zz < nplane; zz++)
+            {
+                size_t offset = fov*nchan*nplane*3; /* select fov */
+                offset += zz*3*nchan; /* select plane */
+                offset += cc*3; /* select channel */
+                double * XYZ = _XYZ + offset;
+                double x = XYZ[0];
+                double y = XYZ[1];
+                double z = XYZ[2];
+                printf("%d, %d, %d, %f, %f, %f\n",
+                       fov+1, cc+1, zz+1, x, y, z);
+            }
+        }
+    }
+    return;
+}
+
 int main(int argc, char ** argv)
 {
     check_cmd_line(argc, argv);
@@ -1296,6 +1335,12 @@ int main(int argc, char ** argv)
         {
             /* Show brief summary */
             nd2info_print(stdout, info);
+        }
+
+        if(conf->showcoords)
+        {
+            nd2_show_coordinates(info);
+            goto cleanup_file;
         }
 
         if(conf->convert)

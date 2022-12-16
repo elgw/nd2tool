@@ -1,3 +1,8 @@
+# 0.1.2
+ - Added the **--coord** command line option that will print the
+   position of all images in csv format to the standard output. To be
+   validated together with **--shake**.
+
 # 0.1.1
  - Experimental (still to be validated and hence not enabled by
    default) shake detection in the axial direction, enable with the
