@@ -28,6 +28,14 @@ conversion.
 **-h**, **\--help**
 : Show a short help message and quit.
 
+**-s**, **--shake**
+: Enable shake detection, i.e., show a warning if the distance between
+  consecutive planes is more than 1 nm.
+
+**-c**, **--coord**
+: Print out the coordinates, as reported in the metadata, for all
+  planes. A csv format is used.
+
 **\--meta**
 : Extract all metadata and write to stdout. This is seldom useful,
   please see the following options.

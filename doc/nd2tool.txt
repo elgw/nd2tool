@@ -1,9 +1,8 @@
-ND2TOOL(1)							    ND2TOOL(1)
+ND2TOOL(1)											   ND2TOOL(1)
 
 NAME
-       nd2tool	is  a tool converting Nikon nd2 files to the tif image format.
-       It can also be used to extract metadata from nd2 files without  conver‐
-       sion.
+       nd2tool	is a tool converting Nikon nd2 files to the tif image format.  It can also be used to extract
+       metadata from nd2 files without conversion.
 
 SYNOPSIS
        nd2tool OPTIONS file1.nd2 file2.nd2 ...
@@ -13,8 +12,8 @@ OPTIONS
 	      Display basic information from the metadata but do no conversion
 
        -v l, --verbose l
-	      Set verbosity level to l.	 0=quite, 1=normal, >1 show memory us‐
-	      age etc >2 also dump meta data as it is read.
+	      Set verbosity level to l.	 0=quite, 1=normal, >1 show memory usage etc >2 also dump  meta	 data
+	      as it is read.
 
        -o, --overwrite
 	      Overwrite existing tif files.
@@ -25,30 +24,33 @@ OPTIONS
        -h, --help
 	      Show a short help message and quit.
 
-       --meta Extract all metadata and write to stdout.	 This is  seldom  use‐
-	      ful, please see the following options.
+       -s, –shake
+	      Enable shake detection, i.e., show a warning if the distance between consecutive planes is more
+	      than 1 nm.
+
+       -c, –coord
+	      Print out the coordinates, as reported in the metadata, for all planes.  A csv format is used.
+
+       --meta Extract all metadata and write to stdout.	 This is seldom useful, please see the following  op‐
+	      tions.
 
        --meta-file
-	      Print  the  JSON	metadata returned by the API call Lim_FileGet‐
-	      Metadata.
+	      Print the JSON metadata returned by the API call Lim_FileGetMetadata.
 
        --meta-coord
-	      Print the text metadata returned by the API call	Lim_FileGetCo‐
-	      ordInfo.
+	      Print the text metadata returned by the API call Lim_FileGetCoordInfo.
 
        --meta-frame
 	      Print the JSON metadata returned by Lim_FileGetFrameMetadata.
 
        --meta-text
-	      Print the text metadata returned by the API call Lim_FileGetTex‐
-	      tinfo.
+	      Print the text metadata returned by the API call Lim_FileGetTextinfo.
 
        --meta-exp Print the JSON metadata returned by Lim_FileGetExperiment.
 
 INPUT
-       nd2tool should be capable to convert nd2 files where the image data  is
-       stored as 16-bit unsigned integers.  It can currently not handle images
-       with time loops.
+       nd2tool should be capable to convert nd2 files where the image data is stored as 16-bit unsigned inte‐
+       gers.  It can currently not handle images with time loops.
 
 OUTPUT
        If nd2tool is run by
@@ -72,16 +74,14 @@ OUTPUT
 	      ├── SpGold_002.tif
 	      └── SpGold_003.tif
 
-       i.e. a new folder with the same name as the input  file	excluding  the
-       file extension .nd2.  Then each Field of View (FOV) and channel will be
-       saved as a separate file with the scheme CHANNEL_FOV.tif	 were  FOV  is
-       padded with 0s to always be three digits.
+       i.e. a new folder with the same name as the input file excluding the file extension .nd2.   Then	 each
+       Field  of View (FOV) and channel will be saved as a separate file with the scheme CHANNEL_FOV.tif were
+       FOV is padded with 0s to always be three digits.
 
 NOTES
-       The  meta data extraction should work in most cases even if the conver‐
-       sion does not.  If meta data can’t be parsed from a file it is probably
-       corrupt or not a nd2 file.  Meta data should be appended to all bug re‐
-       ports.
+       The meta data extraction should work in most cases even if the conversion  does	not.   If  meta	 data
+       can’t be parsed from a file it is probably corrupt or not a nd2 file.  Meta data should be appended to
+       all bug reports.
 
 WEB PAGE
        <https://github.com/elgw/nd2tool/>
@@ -92,4 +92,4 @@ REPORTING BUGS
 AUTHORS
        Erik Wernersson.
 
-nd2tool				     2022			    ND2TOOL(1)
+nd2tool						     2022					   ND2TOOL(1)
