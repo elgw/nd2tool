@@ -152,12 +152,25 @@ void nd2info_free(nd2info_t * n)
         free(n->error);
         n->error = NULL;
     }
+
+    if(n->meta_frame != NULL)
+    {
+        if(n->meta_frame->stagePositionUm != NULL)
+        {
+            free(n->meta_frame->stagePositionUm);
+        }
+        free(n->meta_frame);
+    }
+
     free(n);
 }
 
 nd2info_t * nd2info_new()
 {
     nd2info_t * info = calloc(1, sizeof(nd2info_t));
+    info->meta_frame = calloc(1, sizeof(meta_frame_t));
+    info->meta_frame->stagePositionUm = NULL;
+
     return info;
 }
 
@@ -447,17 +460,29 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     info->meta_att = parse_metadata(fileMeta);
     Lim_FileFreeString(fileMeta);
 
+    int nchannel = info->meta_att->nchannels;
+    if(conf->shake)
+    {
+        info->meta_frame->stagePositionUm = calloc(3*seqCount*nchannel,
+                                                   sizeof(double));
+    }
 
-    /* Information per 2D image */
+    /* Information per xyz (all channels) */
     for(int kk = 0; kk<seqCount; kk++)
     {
-        char * info = Lim_FileGetFrameMetadata(nd2, kk);
+        char * frameMeta = Lim_FileGetFrameMetadata(nd2, kk);
         if(conf->verbose > 2)
         {
             printf("# FileGetFrameMetadata for image %d\n", kk);
-            printf("%s\n", info);
+            printf("%s\n", frameMeta);
         }
-        Lim_FileFreeString(info);
+
+        if(conf->shake)
+        {
+            parse_stagePosition(frameMeta, nchannel,
+                                info->meta_frame->stagePositionUm + 3*kk*nchannel); // offset
+        }
+        Lim_FileFreeString(frameMeta);
     }
 
     /* Lim_FileGetTextinfo does not return JSON. It contains
@@ -508,6 +533,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     return info;
 }
 
+
 int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 {
     /* Check that the nd2 file exists */
@@ -534,7 +560,11 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 
 
     info->outfolder = strdup(info->filename);
+    char * outfolder = strdup(basename(info->outfolder));
+    free(info->outfolder);
+    info->outfolder = outfolder;
     info->outfolder = basename(info->outfolder);
+
     remove_file_ext(info->outfolder);
     if(conf->verbose > 2)
     {
@@ -629,18 +659,26 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
             sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
+            printf("%s ", outname);
+            fprintf(info->log, "%s ", outname);
+
+            if(conf->shake)
+            {
+                check_stage_position(info, ff, cc);
+            }
+
             if(conf->overwrite == 0)
             {
                 if(isfile(outname))
                 {
-                    printf("Skipping %s (file exists)\n", outname);
-                    fprintf(info->log, "Skipping %s (file exists)\n", outname);
+                    printf("-- skipping, file exists\n");
+                    fprintf(info->log, "-- skipping, file exists\n");
                     goto next_file;
                 }
             }
             if(conf->verbose > 0)
             {
-                printf("Writing to %s ... ", outname); fflush(stdout);
+                printf("... writing ... "); fflush(stdout);
             }
 
             /* Create temporary file */
@@ -688,6 +726,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
             {
                 printf("done\n");
             }
+            fprintf(info->log, "\n");
             free(outname_tmp);
         next_file: ;
             free(outname);
@@ -705,6 +744,64 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     return EXIT_SUCCESS;
 }
 
+void parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
+{
+
+    cJSON *json = cJSON_Parse(frameMeta);
+    if (json == NULL)
+    {
+        fprintf(stderr, "Error parsing stagePosition\n");
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL)
+        {
+            fprintf(stderr, "Error before: %s\n", error_ptr);
+        }
+        exit(EXIT_FAILURE);
+    }
+    const cJSON * j_channels = cJSON_GetObjectItemCaseSensitive(json,
+                                                                "channels");
+    /* TODO: Validate that this agrees with the information about the
+       number of channels that we got from somewhere else  */
+    int nchannels_validation = cJSON_GetArraySize(j_channels);
+
+    if(nchannels != nchannels_validation)
+    {
+        fprintf(stderr, "Inconsistent metadata. Are there %d or %d channels?",
+                nchannels, nchannels_validation);
+        exit(EXIT_FAILURE);
+    }
+
+    for(int cc = 0; cc<nchannels; cc++)
+    {
+        const cJSON * j_chan = cJSON_GetArrayItem(j_channels, cc);
+        assert(j_channels != NULL);
+        const cJSON * j_position = cJSON_GetObjectItemCaseSensitive(j_chan,
+                                                                    "position");
+        assert(j_position != NULL);
+        const cJSON * j_stagePositionUm = cJSON_GetObjectItemCaseSensitive(j_position,
+                                                                           "stagePositionUm");
+        assert(j_stagePositionUm != NULL);
+
+        const cJSON * j_x = cJSON_GetArrayItem(j_stagePositionUm, 0);
+        assert(j_x != NULL);
+        assert(cJSON_IsNumber(j_x));
+
+        const cJSON * j_y = cJSON_GetArrayItem(j_stagePositionUm, 1);
+        assert(j_y != NULL);
+        assert(cJSON_IsNumber(j_y));
+
+        const cJSON * j_z = cJSON_GetArrayItem(j_stagePositionUm, 2);
+        assert(j_z != NULL);
+        assert(cJSON_IsNumber(j_z));
+        pos[3*cc] = j_x->valuedouble;
+        pos[3*cc+1] = j_y->valuedouble;
+        pos[3*cc+2] = j_z->valuedouble;
+
+        //printf("%f, %f ,%f,\n", j_x->valuedouble, j_y->valuedouble, j_z->valuedouble);
+    }
+    cJSON_Delete(json);
+    return;
+}
 
 /* Show four blank spaces coloured by RGB
  * if fid != stdout, writes "    ".
@@ -871,6 +968,7 @@ ntconf_t * ntconf_new(void)
     conf->meta_frame = 0;
     conf->meta_text = 0;
     conf->meta_exp = 0;
+    conf->shake = 0;
 
     return conf;
 }
@@ -890,6 +988,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
+        { "shake",      no_argument, NULL, 's'},
         { "verbose",    required_argument, NULL, 'v'},
         { "version",    no_argument, NULL, 'V'},
         { "fov",        required_argument, NULL, 'F'},
@@ -903,7 +1002,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fhiov:V", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456Fhiosv:V", longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
@@ -943,6 +1042,9 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
             break;
         case 'o':
             conf->overwrite = 1;
+            break;
+        case 's':
+            conf->shake = 1;
             break;
         case 'v':
             conf->verbose = atoi(optarg);
@@ -1061,6 +1163,39 @@ void showmeta_text(char * file)
     return;
 }
 
+void check_stage_position(nd2info_t * info, int fov, int channel)
+{
+    /* i.e. shake detection in z */
+    int nchannel = info->meta_att->nchannels;
+    /* Assuming equal number of planes in all channels */
+    int nplane = info->meta_att->channels[0]->P;
+    double * XYZ = info->meta_frame->stagePositionUm;
+    size_t stride = nchannel*3;
+    size_t offset = fov*stride*nplane + 3*channel;
+    XYZ = XYZ + offset;
+
+    /* check dz */
+    double dz_min = 0;
+    double dz_max = 0;
+    for(int zz = 1; zz < nplane; zz++)
+    {
+        double dz = XYZ[stride*zz + 2] - XYZ[stride*(zz-1) + 2];
+        if(zz == 1)
+        {
+            dz_min = dz;
+            dz_max = dz;
+        }
+        dz < dz_min ? dz_min = dz : 0;
+        dz > dz_max ? dz_max = dz : 0;
+    }
+
+    if( fabs(1000.0*(dz_max - dz_min)) > 1 )
+    {
+        printf("WARNING: dz_nm [%.0f, %.0f] ", dz_min*1000, dz_max*1000);
+    }
+
+    fprintf(info->log, "dz_nm [%.f, %.0f] ", dz_min*1000, dz_max*1000);
+}
 
 void showmeta(ntconf_t * conf, char * file)
 {

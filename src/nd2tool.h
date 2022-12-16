@@ -3,7 +3,7 @@
 
 #define ND2TOOL_VERSION_MAJOR "0"
 #define ND2TOOL_VERSION_MINOR "1"
-#define ND2TOOL_VERSION_PATCH "0"
+#define ND2TOOL_VERSION_PATCH "1"
 
 #include <assert.h>
 #include <errno.h>
@@ -44,7 +44,7 @@ typedef struct{
     int meta_exp;
     /* Index of first argument not consumed by getopt_long */
     int optind;
-
+    int shake;
 } ntconf_t;
 
 ntconf_t * ntconf_new(void);
@@ -82,6 +82,10 @@ typedef struct{
     double dz_nm;
 } channel_attrib_t;
 
+typedef struct{
+    double * stagePositionUm;
+} meta_frame_t;
+
 typedef struct
 {
     channel_attrib_t ** channels;
@@ -93,6 +97,7 @@ typedef struct
     char * filename;
     metadata_t * meta_att;
     file_attrib_t * file_att;
+    meta_frame_t * meta_frame;
     char * error;
     int nFOV;
     char * loopstring;
@@ -113,7 +118,11 @@ void file_attrib_free(file_attrib_t * f);
 void metadata_free(metadata_t * m);
 metadata_t * parse_metadata(const char * str);
 file_attrib_t * parse_file_attrib(const char * str);
+/* Parse the frame metadata (given as text), say what number of
+ * channels that we expect (nchannels) and where to put the coordinates (pos) */
+void parse_stagePosition(const char * frameMeta, int nchannels, double * pos);
 
+void check_stage_position(nd2info_t * info, int fov, int channel);
 
 /* RAW metadata extraction without JSON parsing */
 void showmeta(ntconf_t * conf, char * file);
