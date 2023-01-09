@@ -533,32 +533,39 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     return info;
 }
 
-
-int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
+void * open_nd2(ntconf_t * conf, char * filename)
 {
     /* Check that the nd2 file exists */
-    struct stat stats;
-    if(stat(info->filename, &stats) != 0)
     {
-        if(conf->verbose > 0)
+        struct stat stats;
+        if(stat(filename, &stats) != 0)
         {
-            fprintf(stderr, "Can't open %s\n", info->filename);
+            if(conf->verbose > 0)
+            {
+                fprintf(stderr, "Can't open %s\n", filename);
+            }
+            return NULL;
         }
-        return EXIT_FAILURE;
     }
 
     /* Please note that this reports true also for tif files */
-    void * nd2 = Lim_FileOpenForReadUtf8(info->filename);
+    void * nd2 = Lim_FileOpenForReadUtf8(filename);
     if(nd2 == NULL)
     {
         if(conf->verbose > 0)
         {
-            fprintf(stderr, "%s is not a valid nd2 file\n", info->filename);
+            fprintf(stderr, "%s is not a valid nd2 file\n", filename);
         }
-        return EXIT_FAILURE;
+        return NULL;
     }
+    return nd2;
+}
 
 
+/* Create set info->outfolder and create that folder in the file system.
+ * sets info->outfolder to NULL upon failure.  */
+void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
+{
     info->outfolder = strdup(info->filename);
     char * outfolder = strdup(basename(info->outfolder));
     free(info->outfolder);
@@ -579,36 +586,18 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
             fprintf(stdout,
                     "Error: Unable to create the folder %s\n",
                     info->outfolder);
+            free(info->outfolder);
+            info->outfolder = NULL;
         }
     }
 
-    if(info->file_att->bitsPerComponentInMemory != 16)
-    {
-        fprintf(stderr, "Can only convert files with 16 bit per pixel.\n"
-                "This file has %d\n",
-                info->file_att->bitsPerComponentInMemory);
-        return EXIT_FAILURE;
-    }
 
-    info->logfile = malloc(strlen(info->outfolder) + 128);
-    sprintf(info->logfile, "%s/nd2tool.log.txt",
-            info->outfolder);
 
-    if(conf->verbose > 1)
-    {
-        printf("Log file %s\n", info->logfile);
-    }
+    return;
+}
 
-    info->log = fopen(info->logfile, "a");
-    if(info->log == NULL)
-    {
-        fprintf(stderr, "Unable to create the log file: %s\n",
-                info->logfile);
-        exit(EXIT_FAILURE);
-    }
-    /* A newline will separate what is written to the log this time to
-       what was already written. */
-    fprintf(info->log, "\n");
+void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
+{
 
     /* Prepare metadata for the tiff files */
     ttags * tags = ttags_new();
@@ -631,17 +620,19 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                            info->meta_att->channels[0]->dy_nm,
                            info->meta_att->channels[0]->dz_nm);
 
-    /* Buffer for one slice and one color */
-    uint16_t * S = malloc(sizeof(uint16_t)*M*N);
-
-
-    LIMPICTURE * pic = malloc(sizeof(LIMPICTURE));
-    Lim_InitPicture(pic, M, N, 16, nchan);
 
     /* We choose to extract the image data multiple times and only
      * collect pixels from one channel at a time. This is of course
      * slightly slower than extracting all channels for a given FOV at
      * a time but gives more predictable memory usage. */
+
+    /* Buffer for one slice and one color */
+    uint16_t * S = malloc(sizeof(uint16_t)*M*N);
+
+    LIMPICTURE * pic = malloc(sizeof(LIMPICTURE));
+    Lim_InitPicture(pic, M, N, 16, nchan);
+
+
 
     for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
@@ -652,6 +643,8 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                 continue;
             }
         }
+
+
         for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
@@ -734,12 +727,203 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
         } // cc
     }// ff
 
+    Lim_DestroyPicture(pic);
+    free(pic);
+
+    free(S);
+    ttags_free(&tags);
+}
+
+void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
+{
+
+    /* Prepare metadata for the tiff files */
+    ttags * tags = ttags_new();
+    {
+        char * sw_string = malloc(1024);
+        sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
+                info->filename);
+        ttags_set_software(tags , sw_string);
+        free(sw_string);
+    }
+    int nchan = info->meta_att->nchannels;
+    int M = info->meta_att->channels[0]->M;
+    int N = info->meta_att->channels[0]->N;
+    int P = info->meta_att->channels[0]->P;
+
+    ttags_set_imagesize(tags, M, N, P);
+    ttags_set_pixelsize_nm(tags,
+                           info->meta_att->channels[0]->dx_nm,
+                           info->meta_att->channels[0]->dy_nm,
+                           info->meta_att->channels[0]->dz_nm);
+
+    ttags_set_composite(tags, nchan);
+
+    // TODO: Set the extra tags needed for composite images.
+
+    /* We choose to extract the image data multiple times and only
+     * collect pixels from one channel at a time. This is of course
+     * slightly slower than extracting all channels for a given FOV at
+     * a time but gives more predictable memory usage. */
+
+    /* Buffer for one slice and one color */
+    uint16_t * S = malloc(sizeof(uint16_t)*M*N);
+
+    LIMPICTURE * pic = malloc(sizeof(LIMPICTURE));
+    Lim_InitPicture(pic, M, N, 16, nchan);
+
+
+
+    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    {
+        if(conf->fov_string != NULL)
+        {
+            if(atoi(conf->fov_string) != (ff+1))
+            {
+                continue;
+            }
+        }
+
+        /* Write out to disk */
+        char * outname = malloc(1024);
+        sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
+                "composite", ff+1);
+
+        printf("%s ", outname);
+        fprintf(info->log, "%s ", outname);
+
+
+
+        if(conf->overwrite == 0)
+        {
+            if(isfile(outname))
+            {
+                printf("-- skipping, file exists\n");
+                fprintf(info->log, "-- skipping, file exists\n");
+                goto next_file;
+            }
+        }
+        if(conf->verbose > 0)
+        {
+            printf("... writing ... "); fflush(stdout);
+        }
+
+        /* Create temporary file */
+        char * outname_tmp = malloc(strlen(outname) + 16);
+        sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+        int tfid = 0;
+        if((tfid = mkstemp(outname_tmp)) == -1)
+        {
+            fprintf(stderr, "Failed to create a temporary file based on pattern: %s\n", outname_tmp);
+            exit(EXIT_FAILURE);
+        }
+        close(tfid);
+
+        tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P*nchan);
+
+        for(int64_t kk = 0; kk<P; kk++) /* For each plane */
+        {
+            for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
+            {
+
+                /* Returns interlaced data */
+                int res = Lim_FileGetImageData(nd2,
+                                               kk + ff*P, //uiSeqIndex,
+                                               pic);
+                if(res != 0)
+                {
+                    fprintf(stderr, "Failed to read from %s. At line %d\n",
+                            info->filename, __LINE__);
+                }
+
+                if( (pic->pImageData == NULL) || (pic->uiSize == 0) )
+                {
+                    fprintf(stderr, "Failed to retrieve image data\n");
+                }
+                uint16_t * pixels = (uint16_t *) pic->pImageData;
+
+                for(int64_t pp = 0; pp<M*N; pp++)
+                {
+                    S[pp] = pixels[pp*nchan+cc];
+                }
+                tiff_writer_write(tw, S);
+            } // cc
+
+        } // kk
+        /* Finish this image */
+        tiff_writer_finish(tw);
+        rename(outname_tmp, outname);
+        if(conf->verbose > 0)
+        {
+            printf("done\n");
+        }
+        fprintf(info->log, "\n");
+        free(outname_tmp);
+    next_file: ;
+        free(outname);
+
+    }// ff
 
     Lim_DestroyPicture(pic);
     free(pic);
 
     free(S);
     ttags_free(&tags);
+}
+
+
+int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
+{
+    void * nd2 = open_nd2(conf, info->filename);
+    if(nd2 == NULL)
+    {
+        fprintf(stderr, "Failed to read from %s\n", info->filename);
+        return EXIT_FAILURE;
+    }
+
+    ensure_output_folder(conf, info);
+    if(info->outfolder == NULL)
+    {
+        fprintf(stderr, "Failed to create the output folder\n");
+        return EXIT_FAILURE;
+    }
+
+    if(info->file_att->bitsPerComponentInMemory != 16)
+    {
+        fprintf(stderr, "Can only convert files with 16 bit per pixel.\n"
+                "This file has %d\n",
+                info->file_att->bitsPerComponentInMemory);
+        return EXIT_FAILURE;
+    }
+
+    info->logfile = malloc(strlen(info->outfolder) + 128);
+    sprintf(info->logfile, "%s/nd2tool.log.txt",
+            info->outfolder);
+
+    if(conf->verbose > 1)
+    {
+        printf("Log file %s\n", info->logfile);
+    }
+
+    info->log = fopen(info->logfile, "a");
+    if(info->log == NULL)
+    {
+        fprintf(stderr, "Unable to create the log file: %s\n",
+                info->logfile);
+        exit(EXIT_FAILURE);
+    }
+    /* A newline will separate what is written to the log this time to
+       what was already written. */
+    fprintf(info->log, "\n");
+
+
+    if(conf->composite)
+    {
+        nd2_to_tiff_composite(nd2, conf, info);
+    } else {
+        nd2_to_tiff_split(nd2, conf, info);
+    }
+
     Lim_FileClose(nd2);
     return EXIT_SUCCESS;
 }
@@ -905,6 +1089,7 @@ void print_version(FILE * fid)
             ND2TOOL_VERSION_MAJOR,
             ND2TOOL_VERSION_MINOR,
             ND2TOOL_VERSION_PATCH);
+    fprintf(fid, "TIFF: '%s'\n", TIFFGetVersion());
     return;
 }
 
@@ -941,6 +1126,7 @@ void show_help(char * name)
     printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
     printf("  -s, --shake\n\t Enable experimental shake detection\n");
     printf("  --fov n\n\t Only extract Field Of View #n\n");
+    printf("  -C, --composite\n\t Don't split by channel\n");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -971,7 +1157,7 @@ ntconf_t * ntconf_new(void)
     conf->meta_text = 0;
     conf->meta_exp = 0;
     conf->shake = 0;
-
+    conf->composite = 0;
     return conf;
 }
 
@@ -988,6 +1174,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
 {
     struct option longopts[] = {
         { "coord",      no_argument, NULL, 'c'},
+        { "composite",  no_argument, NULL, 'C'},
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
@@ -1005,7 +1192,7 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fchiosv:V", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456Fchiosv:CV", longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
@@ -1040,6 +1227,9 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->showcoords = 1;
             conf->shake = 1;
             conf->verbose = 0;
+            break;
+        case 'C':
+            conf->composite = 1;
             break;
         case 'F':
             conf->fov_string = strdup(optarg);

@@ -9,6 +9,7 @@
  */
 
 
+
 /* Used to redirect errors from libtiff */
 void tiffErrHandler(const char* module, const char* fmt, va_list ap)
 {
@@ -107,11 +108,19 @@ ttags * ttags_new()
     T-> resolutionunit = RESUNIT_CENTIMETER;
     T->IJIJinfo = NULL;
     T->nIJIJinfo = 0;
+    T->composite = 0;
+    T->nchannel = 1;
     // Image size MxNxP
     T->M = 0;
     T->N = 0;
     T->P = 0;
     return T;
+}
+
+void ttags_set_composite(ttags * T, int nchannel)
+{
+    T->composite = 1;
+    T->nchannel = nchannel;
 }
 
 void ttags_set_imagesize(ttags * T, int M, int N, int P)
@@ -265,14 +274,119 @@ void ttags_set(TIFF * tfile, ttags * T)
         TIFFSetField(tfile, TIFFTAG_SOFTWARE, T->software);
     }
 
+
+
+    TIFFSetField(tfile, TIFFTAG_XRESOLUTION, T->xresolution);
+    TIFFSetField(tfile, TIFFTAG_YRESOLUTION, T->yresolution);
+    TIFFSetField(tfile, TIFFTAG_RESOLUTIONUNIT, T->resolutionunit);
+
+    if(T->composite)
+    {
+        if(T->imagedescription)
+        {
+            free(T->imagedescription);
+        }
+        T->imagedescription = malloc(1024);
+
+        sprintf(T->imagedescription,
+                "ImageJ=1.52r\n"
+                "images=%ld\n"
+                "slices=%ld\n"
+                "unit=nm\n"
+                "spacing=%.1f\n"
+                "loop=false\n"
+                "channels=%d\n"
+                "mode=composite\n",
+                T->P*T->nchannel,
+                T->P,
+                T->zresolution,
+                T->nchannel);
+
+        // See info here:
+        // https://stackoverflow.com/questions/24059421/adding-custom-tags-to-a-tiff-file
+        // http://www.simplesystems.org/libtiff/addingtags.html
+        // Also compare to what ImageJ writes to composite images,
+        // i.e. use tiffinfo on a composite image.
+
+        /* In order to write to the custom tags they have to be registered first
+         */
+        assert(TIFFDataWidth(TIFF_BYTE) == 1);
+        assert(TIFFDataWidth(TIFF_LONG) == 4);
+
+        static const TIFFFieldInfo xtiffFieldInfo[] = {
+            { META_DATA_BYTE_COUNTS, // tag
+              TIFF_VARIABLE, // read count
+              TIFF_VARIABLE, // write count
+              TIFF_LONG, // data type
+              FIELD_CUSTOM, //
+              1, // can be updated
+              1, // count must be passed
+              "MetaDataByteCounts" }, // name
+            { META_DATA,
+              -1,
+              -1,
+              TIFF_BYTE,
+              FIELD_CUSTOM,
+              1,
+              1,
+              "MetaData" }
+        };
+
+        TIFFMergeFieldInfo(tfile, xtiffFieldInfo, 2);
+
+        /* Now we can write */
+        uint32_t count = (T->nchannel + 2);
+        uint32_t * value = malloc(count*sizeof(uint32_t));
+        value[0] = 20;
+        value[1] = 64;
+        for(uint32_t kk = 2; kk<count; kk++)
+        {
+            value[kk] = 768; // size of RGB data
+        }
+        TIFFSetField(tfile, 50838, count, (void*) value);
+
+        count = T->nchannel*768 + 20 + 64;
+        free(value);
+
+        /* First 20 numbers, don't know what these are except for the
+         * last one which is the number of channels.  */
+        uint8_t * metadata = calloc(count, 1);
+        // 73,74,73,74,114,97,110,103,0,0,0,1,108,117,116,115,0,0,0,
+        metadata[0] = 73;
+        metadata[1] = 74;
+        metadata[2] = 73;
+        metadata[3] = 74;
+        metadata[4] = 114;
+        metadata[5] = 97;
+        metadata[6] = 110;
+        metadata[7] = 103;
+        metadata[8] = 0;
+        metadata[9] = 0;
+        metadata[10] = 0;
+        metadata[11] = 1;
+        metadata[12] = 108;
+        metadata[13] = 117;
+        metadata[14] = 116;
+        metadata[15] = 117;
+        metadata[16] = 0;
+        metadata[17] = 0;
+        metadata[18] = 0;
+        metadata[19] = T->nchannel;
+
+        /* TODO: Write the next 64 numbers */
+
+        /* TODO: Use some meaningful colormaps. Seems like ImageJ
+         * picks something automatically if they are all black as it
+         * is left here. */
+
+        TIFFSetField(tfile, 50839, count, (void*) metadata);
+    }
+
     if(T->imagedescription != NULL)
     {
         TIFFSetField(tfile, TIFFTAG_IMAGEDESCRIPTION, T->imagedescription);
     }
 
-    TIFFSetField(tfile, TIFFTAG_XRESOLUTION, T->xresolution);
-    TIFFSetField(tfile, TIFFTAG_YRESOLUTION, T->yresolution);
-    TIFFSetField(tfile, TIFFTAG_RESOLUTIONUNIT, T->resolutionunit);
     return;
 }
 

@@ -16,6 +16,8 @@
 #define XTAG_IJIJUNKNOWN 50838
 #define XTAG_IJIJINFO 50839
 
+#define META_DATA_BYTE_COUNTS 50838
+#define META_DATA 50839
 
 /* Tiff tags -- for simple transfer from one image to another */
 typedef struct{
@@ -31,6 +33,8 @@ typedef struct{
     int64_t M;
     int64_t N;
     int64_t P;
+    int composite;
+    int nchannel;
 } ttags;
 
 // new with everything set to defaults
@@ -42,6 +46,8 @@ void ttags_set_software(ttags * , char *);
 void ttags_set_imagesize(ttags *, int M, int N, int P);
 void ttags_set_pixelsize_nm(ttags *, double, double, double);
 void ttags_free(ttags **);
+
+void ttags_set_composite(ttags *, int nchannel);
 
 typedef struct{
     int64_t M;

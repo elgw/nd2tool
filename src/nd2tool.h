@@ -36,6 +36,7 @@ typedef struct{
     int showinfo;
     int showcoords;
     int overwrite;
+    int composite;
     nt_purpose purpose;
     char * fov_string; /* Specifying what fov to use */
     int meta_file;
