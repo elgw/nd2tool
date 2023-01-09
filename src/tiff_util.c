@@ -188,83 +188,6 @@ void ttags_set_software(ttags * T, char * sw)
     sprintf(T->software, "%s", sw);
 }
 
-void ttags_get(TIFF * tfile, ttags * T)
-{
-    // https://docs.openmicroscopy.org/ome-model/5.6.3/ome-tiff/specification.html
-    // a string of OME-XML metadata embedded in the ImageDescription tag of the first IFD (Image File Directory) of each file. The XML string must be UTF-8 encoded.
-
-    T->xresolution = 1;
-    T->yresolution = 1;
-    T->imagedescription = NULL;
-    T->software = NULL;
-    T->resolutionunit = RESUNIT_NONE;
-
-
-    uint16_t runit;
-    if(TIFFGetField(tfile, TIFFTAG_RESOLUTIONUNIT, &runit))
-    {
-        T->resolutionunit = runit;
-    }
-
-    float xres = 0, yres = 0;;
-    if(TIFFGetField(tfile, TIFFTAG_XRESOLUTION, &xres))
-    {
-        T->xresolution = xres;
-    }
-
-    if(TIFFGetField(tfile, TIFFTAG_XRESOLUTION, &yres))
-    {
-        T->yresolution = yres;
-    }
-
-    char * desc = NULL;
-    if(TIFFGetField(tfile, TIFFTAG_IMAGEDESCRIPTION, &desc) == 1)
-    {
-        T->imagedescription = malloc(strlen(desc)+2);
-        strcpy(T->imagedescription, desc);
-    }
-
-    char * software = NULL;
-    if(TIFFGetField(tfile, TIFFTAG_SOFTWARE, &software) == 1)
-    {
-        T->software = malloc(strlen(software)+2);
-        strcpy(T->software, software);
-        //    printf("! Got software tag: %s\n", T->software);
-    }
-
-#if 0
-    /*
-     * From https://github.com/imagej/ImageJA/blob/master/src/main/java/ij/io/TiffDecoder.java
-     * 	public static final int META_DATA_BYTE_COUNTS = 50838; // private tag registered with Adobe
-     *      public static final int META_DATA = 50839; // private tag registered with Adobe
-     */
-
-    uint32_t count;
-    void * data;
-    if(TIFFGetField(tfile, XTAG_IJIJUNKNOWN, &count, &data))
-    {
-        uint32_t * dvalue  = (uint32_t*) data;
-
-        for(int kk = 0; kk<count; kk++)
-        {
-            fprintf(fim_tiff_log, "Tag %d: %d, count %d\n", XTAG_IJIJUNKNOWN, dvalue[kk], count);
-        }
-    }
-
-    T->nIJIJinfo = 0;
-    T->IJIJinfo = NULL;
-    if(TIFFGetField(tfile, XTAG_IJIJINFO, &count, &data))
-    {
-        T->nIJIJinfo = count;
-        T->IJIJinfo = malloc(count);
-        memcpy(T->IJIJinfo, data, count);
-        uint8_t * udata = (uint8_t*) data;
-        for(int kk = 0; kk<count; kk++)
-        { fprintf(fim_tiff_log, "%02d %c %u\n ", kk, udata[kk], udata[kk]);};
-    }
-#endif
-}
-
 void ttags_set(TIFF * tfile, ttags * T)
 {
     //ttags_show(stdout, T);
@@ -274,14 +197,22 @@ void ttags_set(TIFF * tfile, ttags * T)
         TIFFSetField(tfile, TIFFTAG_SOFTWARE, T->software);
     }
 
-
-
     TIFFSetField(tfile, TIFFTAG_XRESOLUTION, T->xresolution);
     TIFFSetField(tfile, TIFFTAG_YRESOLUTION, T->yresolution);
     TIFFSetField(tfile, TIFFTAG_RESOLUTIONUNIT, T->resolutionunit);
 
     if(T->composite)
     {
+        /* A little more meta data is required to produce an image
+           that ImageJ can read.
+
+           Useful references:
+           https://stackoverflow.com/questions/24059421/adding-custom-tags-to-a-tiff-file
+           http://www.simplesystems.org/libtiff/addingtags.html Also
+           compare to what ImageJ writes to composite images, i.e. use
+           tiffinfo on a composite image.
+        */
+
         if(T->imagedescription)
         {
             free(T->imagedescription);
@@ -302,19 +233,13 @@ void ttags_set(TIFF * tfile, ttags * T)
                 T->zresolution,
                 T->nchannel);
 
-        // See info here:
-        // https://stackoverflow.com/questions/24059421/adding-custom-tags-to-a-tiff-file
-        // http://www.simplesystems.org/libtiff/addingtags.html
-        // Also compare to what ImageJ writes to composite images,
-        // i.e. use tiffinfo on a composite image.
-
         /* In order to write to the custom tags they have to be registered first
          */
         assert(TIFFDataWidth(TIFF_BYTE) == 1);
         assert(TIFFDataWidth(TIFF_LONG) == 4);
 
         static const TIFFFieldInfo xtiffFieldInfo[] = {
-            { META_DATA_BYTE_COUNTS, // tag
+            { IJ_META_DATA_BYTE_COUNTS, // tag
               TIFF_VARIABLE, // read count
               TIFF_VARIABLE, // write count
               TIFF_LONG, // data type
@@ -322,7 +247,7 @@ void ttags_set(TIFF * tfile, ttags * T)
               1, // can be updated
               1, // count must be passed
               "MetaDataByteCounts" }, // name
-            { META_DATA,
+            { IJ_META_DATA,
               -1,
               -1,
               TIFF_BYTE,
@@ -343,7 +268,7 @@ void ttags_set(TIFF * tfile, ttags * T)
         {
             value[kk] = 768; // size of RGB data
         }
-        TIFFSetField(tfile, 50838, count, (void*) value);
+        TIFFSetField(tfile, IJ_META_DATA_BYTE_COUNTS, count, (void*) value);
 
         count = T->nchannel*768 + 20 + 64;
         free(value);
@@ -379,7 +304,7 @@ void ttags_set(TIFF * tfile, ttags * T)
          * picks something automatically if they are all black as it
          * is left here. */
 
-        TIFFSetField(tfile, 50839, count, (void*) metadata);
+        TIFFSetField(tfile, IJ_META_DATA, count, (void*) metadata);
     }
 
     if(T->imagedescription != NULL)

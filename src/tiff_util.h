@@ -13,11 +13,9 @@
 #include <inttypes.h>
 
 #define INLINED inline __attribute__((always_inline))
-#define XTAG_IJIJUNKNOWN 50838
-#define XTAG_IJIJINFO 50839
 
-#define META_DATA_BYTE_COUNTS 50838
-#define META_DATA 50839
+#define IJ_META_DATA_BYTE_COUNTS 50838
+#define IJ_META_DATA 50839
 
 /* Tiff tags -- for simple transfer from one image to another */
 typedef struct{
@@ -39,7 +37,7 @@ typedef struct{
 
 // new with everything set to defaults
 ttags * ttags_new();
-void ttags_get(TIFF *, ttags *);
+
 void ttags_show(FILE *, ttags *);
 void ttags_set(TIFF *, ttags *);
 void ttags_set_software(ttags * , char *);
