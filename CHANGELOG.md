@@ -1,3 +1,8 @@
+# 0.1.3
+ - Experimental support for writing composite images with the
+   **--composite** flag. It remains to choose color maps that makes
+   sense.
+
 # 0.1.2
  - Added the **--coord** command line option that will print the
    position of all images in csv format to the standard output. To be
