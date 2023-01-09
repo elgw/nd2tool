@@ -36,6 +36,11 @@ conversion.
 : Print out the coordinates, as reported in the metadata, for all
   planes. A csv format is used.
 
+**-C**, **--composite**
+: Generate a composite image per FOV, i.e. do not save an individual
+  tif file per channel. To be consider experimental and is likely to
+  change behavior in future releases.
+
 **\--meta**
 : Extract all metadata and write to stdout. This is seldom useful,
   please see the following options.
