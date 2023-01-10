@@ -17,28 +17,31 @@
 #define IJ_META_DATA_BYTE_COUNTS 50838
 #define IJ_META_DATA 50839
 
-/* Tiff tags -- for simple transfer from one image to another */
+/* TIFF tags can be read from a tif tile or written to a tif file
+ * using a ttag */
 typedef struct{
+    char * imagedescription;
+    char * software;
+
+    uint16_t resolutionunit; // Default RESUNIT_CENTIMETER
     float xresolution;
     float yresolution;
     float zresolution;
-    char * imagedescription;
-    char * software;
-    uint16_t resolutionunit;
-    char * IJIJinfo; // Tag 50839 contains a string, used by Imagej.
-    uint32_t nIJIJinfo;
-    // Image size
+
+    /* Image size in pixels */
     int64_t M;
     int64_t N;
     int64_t P;
-    int composite;
-    int nchannel;
+    int composite; /* Is a composite image or not */
+    int nchannel; /* Number of channels, only used if composite is set */
 } ttags;
 
-// new with everything set to defaults
+/* Create new tags with default values */
 ttags * ttags_new();
 
+/* Print out the ttag */
 void ttags_show(FILE *, ttags *);
+/* Transfer tags to a tif file */
 void ttags_set(TIFF *, ttags *);
 void ttags_set_software(ttags * , char *);
 void ttags_set_imagesize(ttags *, int M, int N, int P);
