@@ -33,6 +33,11 @@ OPTIONS
 	      Print  out the coordinates, as reported in the metadata, for all
 	      planes.  A csv format is used.
 
+       -C, –composite
+	      Generate a composite image per FOV, i.e. do not save an individ‐
+	      ual  tif	file  per channel.  To be consider experimental and is
+	      likely to change behavior in future releases.
+
        --meta Extract all metadata and write to stdout.	 This is  seldom  use‐
 	      ful, please see the following options.
 
@@ -100,4 +105,4 @@ REPORTING BUGS
 AUTHORS
        Erik Wernersson.
 
-nd2tool				     2022			    ND2TOOL(1)
+nd2tool 0.1.3			     2022			    ND2TOOL(1)

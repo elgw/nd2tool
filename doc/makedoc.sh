@@ -10,7 +10,7 @@ ND2TOOL_VERSION="${ver_major}.${ver_minor}.${ver_patch}"
 tempfile=$(mktemp)
 sed "s/ND2TOOL_VERSION/${ND2TOOL_VERSION}/g" nd2tool.md > ${tempfile}
 
-pandoc ${tempfile} -s -t man -o nd2tool.1
+pandoc ${tempfile} --standalone --from markdown --to man --output nd2tool.1
 rm -f ${tempfile}
 
-man nd2tool.1 | col -b > nd2tool.txt
+man ./nd2tool.1 | col -b > nd2tool.txt
