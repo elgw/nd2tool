@@ -1,4 +1,4 @@
-% ND2TOOL(1) nd2tool
+% ND2TOOL(1) nd2tool ND2TOOL_VERSION
 % Erik Wernersson
 % 2022
 
