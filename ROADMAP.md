@@ -13,16 +13,20 @@ on time series at all (feel free to share your data).
 - [ ] Warn/indicate of images are overlapping.
 
 ## Maybe some day
+- [ ] Enable shake detection by default.
 - [ ] check that the channel names are valid file names?
 - [ ] As alternative to the Nikon library, consider adopting from
 [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader).
 - [ ] Write tiff files without the tiff library like on
 [fTIFFw](https://github.com/elgw/fTIFFw) for some extra speed.
 - [ ] bash auto-completion.
-- [ ] Option to export as multi-color tif files.
 - [ ] Option to export one file per FOV, channel and z-pos.
+- [ ] Custom color maps for multi channel images.
 
 ## Done
+- [x] Option to export as multi-color tif files. -- Requested in [issue
+#1](https://github.com/elgw/nd2tool/issues/1) This was implemented in
+version 0.1.3 and is enabled with the **--composite** flag.
 - [x] Check for inconsistent dz values between image planes (shake
       detection with **--shake**).
 - [x] Export position of images as csv file (**--coord**).
