@@ -17,7 +17,7 @@ than 100 Mb of RAM.
 
 **nd2tool** should be considered as **experimental** since it is only
 tested on a few images. If it does not work for your images, please
-submit a but report, or simply find a tool that suits you better; some
+submit a bug report, or simply find a tool that suits you better; some
 alternatives are listed in the [references](#references). At the
 moment it only supports loops over XY, Color and Z, i.e., not over
 time. It is furthermore limited to nd2 files where the image data is
