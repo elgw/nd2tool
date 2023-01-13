@@ -7,17 +7,21 @@ can be used to:
 2. extract all metadata (**--meta**) from nd2 file or specific
 portions (**--meta-file**, **--meta-coord**, **--meta-frame**,
 **--meta-text**, **--meta-exp**), and,
-3. export the image data to tif files, one per Field of View (FOV)
-and color, in a memory efficient way. Internally **nd2tool** only
-read and write one image plane at a time can convert large files
-using little RAM, for example a 23 GB ND2 image can typically be
-converted to till files using less than 100 Mb of RAM.
-**nd2tool** ...
-- should be considered as **experimental** since it is only tested on
-a few images. You could help by sharing your data or find a tool
-that suits you better in the [references](#references).
-- only supports loops over XY, Color and Z, i.e., not over time.
-- only supports data stored as 16-bit unsigned int.
+3. export the image data to tif file(s). Either one per Field of View
+(FOV) (**--composite**), or one file per FOV and color.
+
+The RAM usage is low. Only one image plane is loaded into RAM at the
+same time. As an example, a 23 GB ND2 image can typically be converted
+to tiff files using less
+than 100 Mb of RAM.
+
+**nd2tool** should be considered as **experimental** since it is only
+tested on a few images. If it does not work for your images, please
+submit a but report, or simply find a tool that suits you better; some
+alternatives are listed in the [references](#references). At the
+moment it only supports loops over XY, Color and Z, i.e., not over
+time. It is furthermore limited to nd2 files where the image data is
+stored as 16-bit unsigned int.
 
 ## Example usage
 ```
@@ -66,11 +70,12 @@ sudo apt-get install ./nd2tool_*.deb
 # sudo apt-get remove nd2tool
 ```
 
-Alternatively this could also be used, please check the `makefile` so
-that the install paths makes sense on your machine.
+For systems that don't use deb files, this might work:
 ```
 sudo make install   # Install binary and man page
 ```
+Please check the `makefile` so that the install paths makes sense on
+your machine if you use this install option.
 
 ## Reporting bugs
 Please use [the issue tracking system on
