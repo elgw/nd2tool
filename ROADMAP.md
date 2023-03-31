@@ -22,6 +22,9 @@ on time series at all (feel free to share your data).
 - [ ] bash auto-completion.
 - [ ] Option to export one file per FOV, channel and z-pos.
 - [ ] Custom color maps for multi channel images.
+- [ ] Include support for czi images. Zeiss now has a public library
+      at [https://github.com/ZEISS/libczi] however it is C++ only so
+      we would have to add a wrapper.
 
 ## Done
 - [x] Option to export as multi-color tif files. -- Requested in [issue
