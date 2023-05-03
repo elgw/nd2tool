@@ -25,7 +25,7 @@ int get_json_double(const cJSON * j, const char * item, double * store)
     } else {
         fprintf(stderr, "ERROR: cJSON_IsNumber failed when trying to parse %s in %s at line %d\n",
                 item, __FILE__, __LINE__);
-        *store = NAN;
+        *store = -1.0;
         return EXIT_FAILURE;
     }
 }

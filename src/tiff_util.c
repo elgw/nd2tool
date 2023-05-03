@@ -1,5 +1,14 @@
 #include "tiff_util.h"
 
+#define NOT_NULL(x) {                                           \
+        if(x == NULL){                                          \
+            fprintf(stderr, "Got a NULL pointer at %s:%d\n",    \
+                    __FILE__, __LINE__);                        \
+            fprintf(stderr, "Can't continue :(\n");             \
+            exit(EXIT_FAILURE);                                 \
+        }                                                       \
+    }                                                           \
+
 
 /* see man 3 tifflib
  *
@@ -24,7 +33,9 @@ tiff_writer_t * tiff_writer_init(const char * fName,
                                  ttags * T,
                                  int64_t N, int64_t M, int64_t P)
 {
-    tiff_writer_t * tw = malloc(sizeof(tiff_writer_t));
+    tiff_writer_t * tw = calloc(1, sizeof(tiff_writer_t));
+    NOT_NULL(tw);
+
     tw->M = M;
     tw->N = N;
     tw->P = P;
@@ -99,7 +110,8 @@ int tiff_writer_finish(tiff_writer_t * tw)
 
 ttags * ttags_new()
 {
-    ttags * T  = malloc(sizeof(ttags));
+    ttags * T  = calloc(1, sizeof(ttags));
+    NOT_NULL(T);
     T->xresolution = 1;
     T->yresolution = 1;
     T->zresolution = 1;
@@ -149,7 +161,8 @@ void ttags_set_pixelsize_nm(ttags * T, double xres, double yres, double zres)
     {
         free(T->imagedescription);
     }
-    T->imagedescription = malloc(1024);
+    T->imagedescription = calloc(1024, 1);
+    NOT_NULL(T->imagedescription);
 
     sprintf(T->imagedescription,
             "ImageJ=1.52r\nimages=%ld\nslices=%ld\nunit=nm\nspacing=%.1f\nloop=false.",
@@ -182,7 +195,8 @@ void ttags_set_software(ttags * T, char * sw)
     {
         free(T->software);
     }
-    T->software = malloc(strlen(sw)+2);
+    T->software = calloc(strlen(sw)+2, 1);
+    NOT_NULL(T->software);
     sprintf(T->software, "%s", sw);
 }
 
@@ -205,7 +219,8 @@ void ttags_set(TIFF * tfile, ttags * T)
         {
             free(T->imagedescription);
         }
-        T->imagedescription = malloc(1024);
+        T->imagedescription = calloc(1024, 1);
+        NOT_NULL(T->imagedescription)
 
         sprintf(T->imagedescription,
                 "ImageJ=1.52r\n"

@@ -1,5 +1,14 @@
 #include "nd2tool.h"
 
+#define NOT_NULL(x) {                                         \
+        if(x == NULL){                                        \
+            fprintf(stderr, "Got a NULL pointer at %s:%d\n",  \
+        __FILE__, __LINE__);                                  \
+            fprintf(stderr, "Can't continue :(\n");           \
+            exit(EXIT_FAILURE);                               \
+        }                                                     \
+}                                                             \
+
 void remove_file_ext(char * str)
 {
     size_t lastpos = strlen(str);
@@ -35,6 +44,7 @@ size_t get_peakMemoryKB(void)
 size_t get_peakMemoryKB(void)
 {
     char * statfile = malloc(100*sizeof(char));
+    NOT_NULL(statfile);
     sprintf(statfile, "/proc/%d/status", getpid());
     FILE * sf = fopen(statfile, "r");
     if(sf == NULL)
@@ -168,7 +178,9 @@ void nd2info_free(nd2info_t * n)
 nd2info_t * nd2info_new()
 {
     nd2info_t * info = calloc(1, sizeof(nd2info_t));
+    NOT_NULL(info);
     info->meta_frame = calloc(1, sizeof(meta_frame_t));
+    NOT_NULL(info->meta_frame);
     info->meta_frame->stagePositionUm = NULL;
 
     return info;
@@ -176,6 +188,7 @@ nd2info_t * nd2info_new()
 
 metadata_t * parse_metadata(const char * str)
 {
+    NOT_NULL(str);
     /* Parse the result from Lim_FileGetMetadata */
     cJSON *j = cJSON_Parse(str);
 
@@ -191,21 +204,27 @@ metadata_t * parse_metadata(const char * str)
         exit(EXIT_FAILURE);
     }
 
-    metadata_t * m = malloc(sizeof(metadata_t));
+    metadata_t * m = calloc(1, sizeof(metadata_t));
+    NOT_NULL(m);
 
     const cJSON * j_contents = cJSON_GetObjectItemCaseSensitive(j, "contents");
+    NOT_NULL(m);
+
     if(get_json_int(j_contents, "channelCount", &m->nchannels) != 0)
     {
         fprintf(stderr, "Unable to continue (%s, line %d)\n",
                 __FILE__, __LINE__);
+        free(m);
         exit(EXIT_FAILURE);
     }
     assert(m->nchannels > 0);
 
     m->channels = malloc(m->nchannels*sizeof(channel_attrib_t*));
+    NOT_NULL(m->channels);
     for(int cc = 0; cc<m->nchannels; cc++)
     {
-        m->channels[cc] = malloc(sizeof(channel_attrib_t));
+        m->channels[cc] = calloc(1, sizeof(channel_attrib_t));
+        NOT_NULL(m->channels[cc]);
         m->channels[cc]->name = NULL;
     }
 
@@ -216,7 +235,8 @@ metadata_t * parse_metadata(const char * str)
     {
         cJSON * j_chan = cJSON_GetObjectItemCaseSensitive(j_channel, "channel");
         m->channels[cc]->name = get_json_string(j_chan, "name");
-        assert(m->channels[cc] != NULL);
+
+        NOT_NULL(m->channels[cc]);
         get_json_double(j_chan,
                         "emissionLambdaNm",
                         &m->channels[cc]->emissionLambdaNm);
@@ -306,6 +326,7 @@ file_attrib_t * parse_file_attrib(const char * str)
     }
 
     file_attrib_t * attrib = malloc(sizeof(file_attrib_t));
+    NOT_NULL(attrib);
 
     get_json_int(json, "heightPx",
                  &attrib->heightPx);
@@ -362,12 +383,15 @@ void filter_textinfo(char * s)
 nd2info_t * nd2info(ntconf_t * conf, char * file)
 {
     nd2info_t * info = nd2info_new();
+    NOT_NULL(info);
     info->filename = strdup(file);
+    NOT_NULL(info->filename);
 
     struct stat stats;
     if(stat(info->filename, &stats) != 0)
     {
         info->error = malloc(strlen(file) + 128);
+        NOT_NULL(info->error);
         sprintf(info->error, "Can't open %s\n", file);
         return info;
     }
@@ -376,6 +400,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     if(nd2 == NULL)
     {
         info->error = malloc(strlen(file) + 128);
+        NOT_NULL(info->error);
         sprintf(info->error, "%s is not a valid nd2 file\n", file);
         return info;
     }
@@ -391,6 +416,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     if(csize < 1)
     {
         info->error = malloc(strlen(file) + 128);
+        NOT_NULL(info->error);
         sprintf(info->error, "Error: Can't find coordinates in %s\n", file);
         Lim_FileClose(nd2);
         return info;
@@ -403,6 +429,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     {
         int buffsize = 1024;
         char * buffer = malloc(buffsize);
+        NOT_NULL(buffer);
         int dsize = Lim_FileGetCoordInfo(nd2, kk, buffer, buffsize);
 
         if(conf->verbose > 2)
@@ -443,6 +470,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     if(nPlanes < 1)
     {
         info->error = malloc(strlen(file) + 128);
+        NOT_NULL(info->error);
         sprintf(info->error, "Error: Can't find any image planes %s\n", file);
         Lim_FileClose(nd2);
         return info;
@@ -465,6 +493,7 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     {
         info->meta_frame->stagePositionUm = calloc(3*seqCount*nchannel,
                                                    sizeof(double));
+        NOT_NULL(info->meta_frame->stagePositionUm);
     }
 
     /* Information per xyz (all channels) */
@@ -603,6 +632,7 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
     ttags * tags = ttags_new();
     {
         char * sw_string = malloc(1024);
+        NOT_NULL(sw_string);
         sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
                 info->filename);
         ttags_set_software(tags , sw_string);
@@ -628,8 +658,10 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
 
     /* Buffer for one slice and one color */
     uint16_t * S = malloc(sizeof(uint16_t)*M*N);
+    NOT_NULL(S);
 
     LIMPICTURE * pic = malloc(sizeof(LIMPICTURE));
+    NOT_NULL(pic);
     Lim_InitPicture(pic, M, N, 16, nchan);
 
 
@@ -649,6 +681,7 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
         {
             /* Write out to disk */
             char * outname = malloc(1024);
+            NOT_NULL(outname);
             sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
@@ -676,6 +709,7 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
 
             /* Create temporary file */
             char * outname_tmp = malloc(strlen(outname) + 16);
+            NOT_NULL(outname_tmp);
             sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
             int tfid = 0;
             if((tfid = mkstemp(outname_tmp)) == -1)
@@ -741,6 +775,7 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
     ttags * tags = ttags_new();
     {
         char * sw_string = malloc(1024);
+        NOT_NULL(sw_string);
         sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
                 info->filename);
         ttags_set_software(tags , sw_string);
@@ -768,8 +803,10 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
     /* Buffer for one slice and one color */
     uint16_t * S = malloc(sizeof(uint16_t)*M*N);
+    NOT_NULL(S);
 
     LIMPICTURE * pic = malloc(sizeof(LIMPICTURE));
+    NOT_NULL(pic);
     Lim_InitPicture(pic, M, N, 16, nchan);
 
 
@@ -786,6 +823,7 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
         /* Write out to disk */
         char * outname = malloc(1024);
+        NOT_NULL(outname);
         sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
                 "composite", ff+1);
 
@@ -810,6 +848,7 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
         /* Create temporary file */
         char * outname_tmp = malloc(strlen(outname) + 16);
+        NOT_NULL(outname_tmp);
         sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
         int tfid = 0;
         if((tfid = mkstemp(outname_tmp)) == -1)
@@ -897,6 +936,7 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     }
 
     info->logfile = malloc(strlen(info->outfolder) + 128);
+    NOT_NULL(info->logfile);
     sprintf(info->logfile, "%s/nd2tool.log.txt",
             info->outfolder);
 
@@ -1145,6 +1185,7 @@ void show_help(char * name)
 ntconf_t * ntconf_new(void)
 {
     ntconf_t * conf = calloc(1, sizeof(ntconf_t));
+    NOT_NULL(conf);
     conf->verbose = 1;
     conf->convert = 1;
     conf->overwrite = 0;
@@ -1293,6 +1334,7 @@ void showmeta_coord(char * file)
 
     int buffsize = 1024;
     char * buffer = malloc(buffsize);
+    NOT_NULL(buffer);
     for(int kk = 0; kk<csize; kk++)
     {
         int dsize = Lim_FileGetCoordInfo(nd2, kk, buffer, buffsize);
@@ -1432,6 +1474,8 @@ void hello_log(__attribute__((unused)) ntconf_t * conf,
     }
     fprintf(info->log, "\n");
     char * hname = malloc(1024*sizeof(char));
+    NOT_NULL(hname);
+
     if(gethostname(hname, 1023) == 0)
     {
         fprintf(info->log, "HOSTNAME: '%s'\n", hname);
