@@ -13,10 +13,10 @@ LDFLAGS+=-flto \
 
 CFLAGS=-Wall -Wextra -std=gnu99
 
-DBG?=0
+DEBUG?=0
 
-ifeq ($(DBG), 1)
-CFLAGS+=-g3
+ifeq ($(DEBUG), 1)
+CFLAGS+=-g3 -fanalyzer
 else
 CFLAGS+=-O3 -DNDEBUG
 endif
