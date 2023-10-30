@@ -3,7 +3,7 @@
 
 #define ND2TOOL_VERSION_MAJOR "0"
 #define ND2TOOL_VERSION_MINOR "1"
-#define ND2TOOL_VERSION_PATCH "3"
+#define ND2TOOL_VERSION_PATCH "4"
 
 #include <assert.h>
 #include <errno.h>
@@ -47,8 +47,8 @@ typedef struct{
     /* Index of first argument not consumed by getopt_long */
     int optind;
     int shake;
-    int dry; /* TODO: Dry run -- don't write anything */
-
+    int dry; /* Dry run -- don't write anything */
+    int deconwolf; /* TODO: Write deconwolf script */
 } ntconf_t;
 
 ntconf_t * ntconf_new(void);
@@ -98,6 +98,7 @@ typedef struct
 
 typedef struct
 {
+    ntconf_t * conf;
     char * filename;
     metadata_t * meta_att;
     file_attrib_t * file_att;
@@ -114,19 +115,19 @@ typedef struct
 /* Main interface for querying nd2 metadata */
 nd2info_t * nd2info(ntconf_t *, char * file);
 void nd2info_free(nd2info_t * n);
-void nd2info_print(FILE *, const nd2info_t *);
-nd2info_t * nd2info_new();
+void nd2info_print(ntconf_t *, FILE *, const nd2info_t *);
+nd2info_t * nd2info_new(ntconf_t * conf);
 
 /* Utility functions */
-void file_attrib_free(file_attrib_t * f);
-void metadata_free(metadata_t * m);
+static void file_attrib_free(file_attrib_t * f);
+static void metadata_free(metadata_t * m);
 metadata_t * parse_metadata(const char * str);
 file_attrib_t * parse_file_attrib(const char * str);
 /* Parse the frame metadata (given as text), say what number of
  * channels that we expect (nchannels) and where to put the coordinates (pos) */
 void parse_stagePosition(const char * frameMeta, int nchannels, double * pos);
 
-void check_stage_position(nd2info_t * info, int fov, int channel);
+static void check_stage_position(nd2info_t * info, int fov, int channel);
 
 /* RAW metadata extraction without JSON parsing  */
 void showmeta(ntconf_t * conf, char * file);
@@ -153,9 +154,9 @@ void hello_log(ntconf_t * conf, nd2info_t * info, int argc, char ** argv);
 /* Replace '\\r\\n' by '   \n' */
 void filter_textinfo(char * s);
 /* Remove .nd2 from file.nd2 */
-void remove_file_ext(char * str);
+static void remove_file_ext(char * str);
 /* Get the peak memory used by the process from /proc/<PID>/status */
-size_t get_peakMemoryKB(void);
+static size_t get_peakMemoryKB(void);
 /* Check if file exists */
 int isfile(char *);
 
