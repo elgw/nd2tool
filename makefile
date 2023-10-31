@@ -33,10 +33,12 @@ CFLAGS+=-fsanitize=address,undefined,leak \
 # santitize does not play with valgrind
 endif
 
-files=src/nd2tool.c \
+files=src/main.c \
+src/nd2tool.c \
 src/tiff_util.c \
 src/json_util.c \
-src/srgb_from_lambda.c
+src/srgb_from_lambda.c \
+src/nd2tool_util.c
 
 shared=lib/liblimfile.so \
 lib/libnd2readsdk-shared.so

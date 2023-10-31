@@ -1,6 +1,10 @@
 # 0.1.4
 -  Added the **--dry** option for dry runs which tells the program not
    to create or modify any folders or files.
+- Added the **--deconwolf** option to generate a script with commands
+  to run deconwolf on the tif files (unless converted with the
+  **--composite** flag).
+- Factored out some code into `nd2tool_util.c`
 
 # 0.1.3
 - Experimental support for writing composite images with the

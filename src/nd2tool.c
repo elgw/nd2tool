@@ -1,5 +1,152 @@
 #include "nd2tool.h"
+#include "nd2tool_util.h"
 
+/* The stripped version of the header file from www.nd2sdk.com
+ * where comments are removed.
+*/
+#include "Nd2ReadSdk_stripped.h"
+
+#include "tiff_util.h"
+#include "json_util.h"
+#include "srgb_from_lambda.h"
+
+typedef enum {
+    CONVERT_TO_TIF,
+    SHOW_METADATA
+} nt_purpose;
+
+/* General settings */
+typedef struct{
+    int verbose;
+    int convert;
+    int showinfo;
+    int showcoords;
+    int overwrite;
+    int composite;
+    nt_purpose purpose;
+    char * fov_string; /* Specifying what fov to use */
+    int meta_file;
+    int meta_coord;
+    int meta_frame;
+    int meta_text;
+    int meta_exp;
+    /* Index of first argument not consumed by getopt_long */
+    int optind;
+    int shake;
+    int dry; /* Dry run -- don't write anything */
+    int deconwolf; /* TODO: Write deconwolf script */
+} ntconf_t;
+
+
+/* Structs holding a subset of the information that can be found in
+   the nd2 files */
+
+/* Data from Lim_FileGetAttributes */
+typedef struct{
+    int bitsPerComponentInMemory; // "bitsPerComponentInMemory": 16,
+    int bitsPerComponentSignificant; // "bitsPerComponentSignificant": 16,
+    int componentCount; //"componentCount": 4,
+    int heightPx; //"heightPx": 2048,
+    int pixelDataType; // "pixelDataType": "unsigned",
+    int sequenceCount; // "sequenceCount": 61,
+    int widthBytes; // "widthBytes": 16384,
+    int widthPx; //"widthPx": 2048
+} file_attrib_t;
+
+/* Data from Lim_FileGetMetadata */
+typedef struct{
+    char * name; /* A647, DAPI, etc */
+    double emissionLambdaNm;
+    double objectiveMagnification;
+    char *  objectiveName;
+    double objectiveNumericalAperture;
+    double immersionRefractiveIndex;
+    int index; /* Channel number */
+    int M; /* Volume size from "voxelCount" */
+    int N;
+    int P;
+    double dx_nm;
+    double dy_nm;
+    double dz_nm;
+} channel_attrib_t;
+
+typedef struct{
+    double * stagePositionUm;
+} meta_frame_t;
+
+typedef struct
+{
+    channel_attrib_t ** channels;
+    int nchannels;
+} metadata_t;
+
+typedef struct
+{
+    ntconf_t * conf;
+    char * filename;
+    metadata_t * meta_att;
+    file_attrib_t * file_att;
+    meta_frame_t * meta_frame;
+    char * error;
+    int nFOV;
+    char * loopstring;
+    char * outfolder;
+    char * logfile;
+    FILE * log;
+} nd2info_t;
+
+/*
+ * Forward declarations
+*/
+
+static ntconf_t * ntconf_new(void);
+static void ntconf_free(ntconf_t * );
+
+/* Main interface for querying nd2 metadata */
+static nd2info_t * nd2info(ntconf_t *, const char * file);
+static void nd2info_free(nd2info_t * n);
+static void nd2info_print(ntconf_t *, FILE *, const nd2info_t *);
+static nd2info_t * nd2info_new(ntconf_t * conf);
+
+/* Utility functions */
+static void file_attrib_free(file_attrib_t * f);
+static void metadata_free(metadata_t * m);
+static metadata_t * parse_metadata(const char * str);
+static file_attrib_t * parse_file_attrib(const char * str);
+/* Parse the frame metadata (given as text), say what number of
+ * channels that we expect (nchannels) and where to put the coordinates (pos) */
+static void parse_stagePosition(const char * frameMeta, int nchannels, double * pos);
+
+static void check_stage_position(nd2info_t * info, int fov, int channel);
+
+/* RAW metadata extraction without JSON parsing  */
+static void showmeta(ntconf_t * conf, char * file);
+static void showmeta_file(char *);
+static void showmeta_coord(char *);
+static void showmeta_frame(char *);
+static void showmeta_text(char *);
+static void showmeta_exp(char *);
+
+/* Convert to tif and place in the outfolder. The outfolder has to
+   exist. */
+static int nd2_to_tiff(ntconf_t *, nd2info_t *);
+
+/* Show XYZ coordinates of all images in csv format */
+static void nd2_show_coordinates(nd2info_t * info);
+
+/* Write some initial information to the log file, info->log */
+static void hello_log(ntconf_t * conf, nd2info_t * info, int argc, char ** argv);
+
+/* Misc */
+
+static void show_help(char * binary_name);
+static void print_version(FILE * fid);
+static void print_web(FILE * fid);
+
+/*
+ * End of forward declarations
+ * Start of code section
+ */
 
 #define NOT_NULL(x) {                                           \
         if(x == NULL){                                          \
@@ -10,7 +157,9 @@
         }                                                       \
     }                                                           \
 
-static void nd2info_log(nd2info_t * info, const char *fmt, ...)
+/** @brief Print to the log file  */
+static void
+nd2info_log(nd2info_t * info, const char *fmt, ...)
 {
     if(info->conf->dry)
     {
@@ -23,100 +172,25 @@ static void nd2info_log(nd2info_t * info, const char *fmt, ...)
     return;
 }
 
-static void * ckcalloc(size_t nmemb, size_t size)
+
+/** @brief Checked allocation */
+static void *
+ckcalloc(size_t nmemb, size_t size)
 {
     void * p = calloc(nmemb, size);
     if(p == NULL)
     {
         char errstr[] = "nd2tool error: calloc returned NULL\n";
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
         write(STDERR_FILENO, errstr, strlen(errstr));
+#pragma GCC diagnostic pop
+
         exit(EXIT_FAILURE);
     }
     return p;
 }
-
-static void remove_file_ext(char * str)
-{
-    size_t lastpos = strlen(str);
-    for(size_t kk = 0; kk<strlen(str); kk++)
-    {
-        if(str[kk] == '.')
-        {
-            lastpos = kk;
-        }
-    }
-
-    if(lastpos < strlen(str))
-    {
-        str[lastpos] = '\0';
-    }
-    if(lastpos == 0)
-    {
-        fprintf(stdout, "Not a valid file name\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-#ifdef __APPLE__
-static size_t get_peakMemoryKB(void)
-{
-    struct rusage r_usage;
-    getrusage(RUSAGE_SELF, &r_usage);
-    return (size_t) round((double) r_usage.ru_maxrss/1024.0);
-}
-#endif
-
-#ifndef __APPLE__
-static size_t get_peakMemoryKB(void)
-{
-    char * statfile = ckcalloc(100, sizeof(char));
-
-    sprintf(statfile, "/proc/%d/status", getpid());
-    FILE * sf = fopen(statfile, "r");
-    if(sf == NULL)
-    {
-        fprintf(stderr,
-                "ERROR in %s at line %d: Failed to open %s\n",
-                __FILE__, __LINE__, statfile);
-        free(statfile);
-        return 0;
-    }
-
-    char * peakline = NULL;
-
-    char * line = NULL;
-    size_t len = 0;
-
-    while( getline(&line, &len, sf) > 0)
-    {
-        if(strlen(line) > 6)
-        {
-            if(strncmp(line, "VmPeak", 6) == 0)
-            {
-                peakline = strdup(line);
-            }
-        }
-    }
-    free(line);
-    fclose(sf);
-    free(statfile);
-
-    /* Parse the line starting with "VmPeak" Seems like it is always
-     * in kB (reference: fs/proc/task_mmu.c) actually in kiB i.e.,
-     * 1024 bytes since the last three characters are ' kb' we can
-     * skip them and parse in-between */
-    size_t peakMemoryKB = 0;
-    if(strlen(peakline) > 11)
-    {
-        peakline[strlen(peakline) -4] = '\0';
-        peakMemoryKB = (size_t) atol(peakline+7);
-    }
-
-    free(peakline);
-    return peakMemoryKB;
-}
-#endif
-
 
 
 static void file_attrib_free(file_attrib_t * f)
@@ -142,26 +216,19 @@ static void metadata_free(metadata_t * m)
     free(m);
 }
 
-void nd2info_free(nd2info_t * n)
+static void nd2info_free(nd2info_t * n)
 {
-
     free(n->filename);
-
     metadata_free(n->meta_att);
-
     file_attrib_free(n->file_att);
-
     free(n->loopstring);
-
     free(n->logfile);
-
     free(n->outfolder);
 
     if(n->log != NULL)
     {
         fclose(n->log);
     }
-
     free(n->error);
 
     if(n->meta_frame != NULL)
@@ -176,20 +243,20 @@ void nd2info_free(nd2info_t * n)
     free(n);
 }
 
-nd2info_t * nd2info_new(ntconf_t * conf)
+
+static nd2info_t * nd2info_new(ntconf_t * conf)
 {
     nd2info_t * info = ckcalloc(1, sizeof(nd2info_t));
     info->meta_frame = ckcalloc(1, sizeof(meta_frame_t));
-    info->meta_frame->stagePositionUm = NULL;
     info->conf = conf;
-
     return info;
 }
 
-metadata_t * parse_metadata(const char * str)
+
+/** @breif Parse the result from Lim_FileGetMetadata */
+static metadata_t * parse_metadata(const char * str)
 {
     NOT_NULL(str);
-    /* Parse the result from Lim_FileGetMetadata */
     cJSON *j = cJSON_Parse(str);
 
     if (j == NULL)
@@ -288,29 +355,14 @@ metadata_t * parse_metadata(const char * str)
         cc++;
     }
 
-
-
     cJSON_Delete(j);
-
     return m;
 }
 
 
-int isfile(char * filename)
+/** @brief Parse the result from Lim_FileGetMetadata */
+static file_attrib_t * parse_file_attrib(const char * str)
 {
-    FILE *file = fopen(filename, "r");
-    if (file != NULL)
-    {
-        fclose(file);
-        return 1;
-    }
-
-    return 0;
-}
-
-file_attrib_t * parse_file_attrib(const char * str)
-{
-    /* Parse the result from Lim_FileGetMetadata */
     cJSON *json = cJSON_Parse(str);
 
     if (json == NULL)
@@ -343,7 +395,8 @@ file_attrib_t * parse_file_attrib(const char * str)
     return attrib;
 }
 
-void check_cmd_line(int argc, char ** argv)
+
+static void check_cmd_line(int argc, char ** argv)
 {
     if(argc < 2)
     {
@@ -353,32 +406,21 @@ void check_cmd_line(int argc, char ** argv)
     return;
 }
 
-void filter_textinfo(char * s)
+
+static void nd2info_set_outfolder(nd2info_t * info)
 {
-    size_t n = strlen(s);
-    for(size_t kk = 0; kk+3<n; kk++)
-    {
-        if(s[kk] == '\\')
-        {
-            if(s[kk+1] == 'r')
-            {
-                if(s[kk+2] == '\\')
-                {
-                    if(s[kk+3] == 'n')
-                    {
-                        s[kk] = ' ';
-                        s[kk+1] = ' ';
-                        s[kk+2] = ' ';
-                        s[kk+3] = '\n';
-                    }
-                }
-            }
-        }
-    }
+    free(info->outfolder);
+    info->outfolder = strdup(info->filename);
+    char * outfolder = strdup(basename(info->outfolder));
+    free(info->outfolder);
+    info->outfolder = outfolder;
+    info->outfolder = basename(info->outfolder);
+    remove_file_ext(info->outfolder);
+    return;
 }
 
 
-nd2info_t * nd2info(ntconf_t * conf, char * file)
+static nd2info_t * nd2info(ntconf_t * conf, const char * file)
 {
     nd2info_t * info = nd2info_new(conf);
     NOT_NULL(info);
@@ -552,10 +594,16 @@ nd2info_t * nd2info(ntconf_t * conf, char * file)
     Lim_FileFreeString(expinfo);
 
     Lim_FileClose(nd2);
+
+    nd2info_set_outfolder(info);
     return info;
 }
 
-void * open_nd2(ntconf_t * conf, char * filename)
+/** @brief Open and return an ND2 file
+ * @return NULL on failure
+ */
+static void *
+open_nd2(ntconf_t * conf, char * filename)
 {
     /* Check that the nd2 file exists */
     {
@@ -586,15 +634,9 @@ void * open_nd2(ntconf_t * conf, char * filename)
 
 /* Create set info->outfolder and create that folder in the file system.
  * sets info->outfolder to NULL upon failure.  */
-void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
+static void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
 {
-    info->outfolder = strdup(info->filename);
-    char * outfolder = strdup(basename(info->outfolder));
-    free(info->outfolder);
-    info->outfolder = outfolder;
-    info->outfolder = basename(info->outfolder);
-
-    remove_file_ext(info->outfolder);
+    nd2info_set_outfolder(info);
     if(conf->verbose > 2)
     {
         printf("Will create folder '%s'\n", info->outfolder);
@@ -620,7 +662,8 @@ void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
     return;
 }
 
-void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
+/** @brief Write an ND2 file as one file per FOV and channel */
+static void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
 {
 
     /* Prepare metadata for the tiff files */
@@ -632,11 +675,11 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
         ttags_set_software(tags , sw_string);
         free(sw_string);
     }
+
     int nchan = info->meta_att->nchannels;
     int M = info->meta_att->channels[0]->M;
     int N = info->meta_att->channels[0]->N;
     int P = info->meta_att->channels[0]->P;
-
 
     ttags_set_imagesize(tags, M, N, P);
     ttags_set_pixelsize_nm(tags,
@@ -655,8 +698,6 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
     LIMPICTURE * pic = ckcalloc(1, sizeof(LIMPICTURE));
     Lim_InitPicture(pic, M, N, 16, nchan);
 
-
-
     for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
         if(conf->fov_string != NULL)
@@ -667,12 +708,10 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
             }
         }
 
-
         for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
             char * outname = ckcalloc(1024, 1);
-
             sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
@@ -766,7 +805,12 @@ void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
     ttags_free(&tags);
 }
 
-void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
+/** @brief Write an ND2 file as composite tif files
+ *
+ * One file per FOV
+*/
+static void
+nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 {
 
     /* Prepare metadata for the tiff files */
@@ -823,8 +867,6 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
         printf("%s ", outname);
         nd2info_log(info, "%s ", outname);
-
-
 
         if(conf->overwrite == 0)
         {
@@ -904,7 +946,12 @@ void nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 }
 
 
-int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
+/** @brief Try to convert an ND2 file to tif
+ *
+ * @return EXIT_SUCCESS or EXIT_FAILURE
+*/
+static int
+nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 {
     void * nd2 = open_nd2(conf, info->filename);
     if(nd2 == NULL)
@@ -953,7 +1000,6 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
         nd2info_log(info, "\n");
     }
 
-
     if(conf->composite)
     {
         nd2_to_tiff_composite(nd2, conf, info);
@@ -965,7 +1011,8 @@ int nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     return EXIT_SUCCESS;
 }
 
-void parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
+static void
+parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
 {
 
     cJSON *json = cJSON_Parse(frameMeta);
@@ -1024,43 +1071,9 @@ void parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
     return;
 }
 
-/* Show four blank spaces coloured by RGB
- * if fid != stdout, writes "    ".
- * if lambda < 400, show " uv ", if lambda > 700, show " ir "
- */
-static void show_color(FILE * fid, double * RGB, double lambda)
-{
-    char ir_type[] = "ir";
-    char uv_type[] = "uv";
-    char vis_type[] = "  ";
 
-    char * type_str = vis_type;
-
-    if(lambda < 400)
-    {
-        type_str = uv_type;
-    }
-    if(lambda > 700)
-    {
-        type_str = ir_type;
-    }
-
-    if(fid == stdout)
-    {
-        fprintf(fid, "\e[38;2;%d;%d;%dm\e[48;2;%d;%d;%dm %s \e[0m",
-                (int) round(255.0 - 255.0*RGB[0]),
-                (int) round(255.0 - 255.0*RGB[1]),
-                (int) round(255.0 - 255.0*RGB[2]),
-                (int) round(255.0*RGB[0]),
-                (int) round(255.0*RGB[1]),
-                (int) round(255.0*RGB[2]),
-                type_str);
-    } else {
-        fprintf(fid, " %s ", type_str);
-    }
-}
-
-void nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
+static void
+nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
 {
     if(conf->dry)
     {
@@ -1127,7 +1140,8 @@ void nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
     return;
 }
 
-void print_version(FILE * fid)
+
+static void print_version(FILE * fid)
 {
     fprintf(fid, "nd2tool v.%s.%s.%s\n",
             ND2TOOL_VERSION_MAJOR,
@@ -1137,20 +1151,23 @@ void print_version(FILE * fid)
     return;
 }
 
-void print_web(FILE * fid)
+
+static void print_web(FILE * fid)
 {
     fprintf(fid, "Web page: <https://www.github.com/elgw/nd2tool>\n");
     return;
 }
 
-void show_version()
+
+static void show_version()
 {
     print_version(stdout);
     print_web(stdout);
     return;
 }
 
-void show_help(char * name)
+
+static void show_help(char * name)
 {
     ntconf_t * conf = ntconf_new();
 
@@ -1171,8 +1188,8 @@ void show_help(char * name)
     printf("  -s, --shake\n\t Enable experimental shake detection\n");
     printf("  --fov n\n\t Only extract Field Of View #n\n");
     printf("  -C, --composite\n\t Don't split by channel\n");
-    // printf("  --deconwolf file.sh\n\t"
-    //       "generate a script that can be run to deconvolve the tif image by deconwolf\n");
+    printf("  --deconwolf\n\t"
+           "for each file, generate a script to run deconwolf\n");
     printf("  --dry\n\t"
            "Perform a dry run, i.e. do not write files or create folders\n");
     printf("Raw meta data extraction to stdout:\n");
@@ -1189,7 +1206,8 @@ void show_help(char * name)
     return;
 }
 
-ntconf_t * ntconf_new(void)
+
+static ntconf_t * ntconf_new(void)
 {
     ntconf_t * conf = ckcalloc(1, sizeof(ntconf_t));
     conf->verbose = 1;
@@ -1199,7 +1217,8 @@ ntconf_t * ntconf_new(void)
     return conf;
 }
 
-void ntconf_free(ntconf_t * conf)
+
+static void ntconf_free(ntconf_t * conf)
 {
     if(conf->fov_string != NULL)
     {
@@ -1208,7 +1227,8 @@ void ntconf_free(ntconf_t * conf)
     free(conf);
 }
 
-int argparse(ntconf_t * conf, int argc, char ** argv)
+
+static int argparse(ntconf_t * conf, int argc, char ** argv)
 {
     struct option longopts[] = {
         { "coord",      no_argument, NULL, 'c'},
@@ -1232,7 +1252,8 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fcdhiosv:CDV", longopts, NULL)) != -1)
+    while((ch = getopt_long(argc, argv, "123456Fcdhiosv:CDV",
+                            longopts, NULL)) != -1)
     {
         switch(ch) {
         case '1':
@@ -1308,7 +1329,8 @@ int argparse(ntconf_t * conf, int argc, char ** argv)
     return EXIT_SUCCESS;
 }
 
-void showmeta_file(char * file)
+
+static void showmeta_file(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
@@ -1323,7 +1345,8 @@ void showmeta_file(char * file)
     return;
 }
 
-void showmeta_coord(char * file)
+
+static void showmeta_coord(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
@@ -1352,7 +1375,8 @@ void showmeta_coord(char * file)
     return;
 }
 
-void showmeta_frame(char * file)
+
+static void showmeta_frame(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
@@ -1374,7 +1398,8 @@ void showmeta_frame(char * file)
     return;
 }
 
-void showmeta_exp(char * file)
+
+static void showmeta_exp(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
@@ -1391,7 +1416,8 @@ void showmeta_exp(char * file)
     return;
 }
 
-void showmeta_text(char * file)
+
+static void showmeta_text(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
@@ -1409,9 +1435,10 @@ void showmeta_text(char * file)
     return;
 }
 
+
+/** @brief Shake detection in z */
 static void check_stage_position(nd2info_t * info, int fov, int channel)
 {
-    /* i.e. shake detection in z */
     int nchannel = info->meta_att->nchannels;
     /* Assuming equal number of planes in all channels */
     int nplane = info->meta_att->channels[0]->P;
@@ -1440,12 +1467,12 @@ static void check_stage_position(nd2info_t * info, int fov, int channel)
         printf("WARNING: dz_nm [%.0f, %.0f] ", dz_min*1000, dz_max*1000);
     }
 
-
     nd2info_log(info, "dz_nm [%.f, %.0f] ", dz_min*1000, dz_max*1000);
     return;
 }
 
-void showmeta(ntconf_t * conf, char * file)
+
+static void showmeta(ntconf_t * conf, char * file)
 {
     if(conf->meta_file)
     {
@@ -1470,7 +1497,8 @@ void showmeta(ntconf_t * conf, char * file)
     return;
 }
 
-void hello_log(__attribute__((unused)) ntconf_t * conf,
+
+static void hello_log(__attribute__((unused)) ntconf_t * conf,
                nd2info_t * info, int argc, char ** argv)
 {
     if(conf->dry)
@@ -1499,7 +1527,8 @@ void hello_log(__attribute__((unused)) ntconf_t * conf,
     return;
 }
 
-void nd2_show_coordinates(nd2info_t * info)
+
+static void nd2_show_coordinates(nd2info_t * info)
 {
     /* see check_stage_position */
     int nchan = info->meta_att->nchannels;
@@ -1530,9 +1559,10 @@ void nd2_show_coordinates(nd2info_t * info)
     return;
 }
 
-// similar to nd2info_print but with the purpose to suggest how
-// deconwolf could be called on the files
-static void nd2info_show_deconwolf(nd2info_t * info, FILE * fid)
+
+/** @brief Write a script that will run deconwolf
+ */
+static void nd2info_show_deconwolf(const nd2info_t * info, FILE * fid)
 {
     metadata_t * meta = info->meta_att;
     fprintf(fid, "#!/bin/env bash\n");
@@ -1541,24 +1571,45 @@ static void nd2info_show_deconwolf(nd2info_t * info, FILE * fid)
     fprintf(fid, "# PSF Generation\n");
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        fprintf(fid, "dw_bw --lambda %f --resxy %f --resz %f --NA %f --ni %f '%s.tif'\n",
+        fprintf(fid, "dw_bw --lambda %f --resxy %f --resz %f --NA %f --ni %f '%s/PSF_%s.tif'\n",
                 meta->channels[cc]->emissionLambdaNm,
                 meta->channels[cc]->dx_nm,
                 meta->channels[cc]->dz_nm,
                 meta->channels[cc]->objectiveNumericalAperture,
                 meta->channels[cc]->immersionRefractiveIndex,
+                info->outfolder,
                 meta->channels[cc]->name);
     }
+
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
         fprintf(fid, "iter_%s=50\n", meta->channels[cc]->name);
     }
 
-    printf("deconwolf ... TODO!\n");
+    for(int ff = 0; ff  < info->nFOV; ff++)
+    {
+        for(int cc = 0; cc < meta->nchannels; cc++)
+        {
+            /* Write out to disk */
+            char * outname = ckcalloc(1024, 1);
+            sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
+                    info->meta_att->channels[cc]->name, ff+1);
+
+            fprintf(fid, "dw --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
+                    meta->channels[cc]->name,
+                    outname,
+                    info->outfolder,
+                    meta->channels[cc]->name);
+
+            free(outname);
+        }
+    }
+
     return;
 }
 
-int main(int argc, char ** argv)
+/** @brief Command line interface to nd2tool */
+int nd2tool_cli(int argc, char ** argv)
 {
     check_cmd_line(argc, argv);
 
@@ -1597,6 +1648,7 @@ int main(int argc, char ** argv)
         }
         /* Parse information */
         nd2info_t * info = nd2info(conf, argv[ff]);
+
         if(info->error != NULL)
         {
             fprintf(stderr, "%s", info->error);
@@ -1605,7 +1657,25 @@ int main(int argc, char ** argv)
 
         if(conf->deconwolf)
         {
-            nd2info_show_deconwolf(info, stdout);
+            char * script_name = ckcalloc(1024+strlen(info->filename), 1);
+            sprintf(script_name, "deconwolf_%s.sh", info->filename);
+
+            FILE * fid_dw_script = fopen(script_name, "w");
+            if(fid_dw_script == NULL)
+            {
+                fprintf(stderr, "Unable to open %s for writing\n", script_name);
+                free(script_name);
+                exit(EXIT_FAILURE);
+            }
+            if(conf->verbose > 0)
+            {
+                fprintf(stdout, "Writing to %s\n", script_name);
+            }
+            nd2info_show_deconwolf(info, fid_dw_script);
+            fclose(fid_dw_script);
+            make_file_executable(script_name);
+
+            free(script_name);
             goto cleanup_file;
         }
 
@@ -1651,7 +1721,7 @@ int main(int argc, char ** argv)
     {
         if(conf->verbose > 1)
         {
-            printf("Done! Used %zu kb of RAM\n", mem);
+            printf("Done! Used at most %zu kb of RAM\n", mem);
         }
     } else {
         if(conf->verbose > 1)
@@ -1659,7 +1729,6 @@ int main(int argc, char ** argv)
             printf("Done! But failed to measure RAM usage\n");
         }
     }
-
 
 
     /* Final cleanup */
