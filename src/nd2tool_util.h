@@ -20,3 +20,9 @@ int isfile(char *);
 void make_file_executable(const char * filename);
 
 void show_color(FILE * fid, const double * RGB, double lambda);
+
+char * prefix_filename(const char * filename, const char * prefix);
+
+char * postfix_filename(const char * filename, const char * postfix);
+
+void nd2tool_util_ut(void);

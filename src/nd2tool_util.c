@@ -198,3 +198,84 @@ void show_color(FILE * fid, const double * RGB, double lambda)
         fprintf(fid, " %s ", type_str);
     }
 }
+
+/** @brief Add a prefix to a file name
+ *
+ * Example:
+ * "file.tif", "dw_" -> "dw_file.tif"
+ * "/data/file.tif", "dw_" -> "/data/dw_file.tif"
+*/
+char *
+prefix_filename(const char * filename, const char * prefix)
+{
+
+    const size_t px_size = strlen(filename) + strlen(prefix)+1;
+    char * px_name = ckcalloc(px_size, 1);
+
+    ssize_t last_filesep = 0;
+    for(size_t kk = 0; kk < strlen(filename); kk++)
+    {
+        if(filename[kk] == '/')
+        {
+            last_filesep = kk+1;
+        }
+    }
+
+    strncat(px_name,
+            filename, last_filesep);
+
+    strcat(px_name,
+            prefix);
+
+    strncat(px_name,
+            filename+last_filesep,
+            strlen(filename)-last_filesep);
+
+    return px_name;
+}
+
+char *
+postfix_filename(const char * filename, const char * postfix)
+{
+    char * px_name = ckcalloc(
+        strlen(filename) + strlen(postfix) + 1, 1);
+    strcat(px_name, filename);
+    strcat(px_name, postfix);
+    return px_name;
+}
+
+static void prefix_filename_test(const char * file,
+                                 const char * prefix,
+                                 const char * ref)
+{
+    char * result = prefix_filename(file, prefix);
+
+    if(strcmp(result, ref))
+    {
+        fprintf(stderr, "prefix_filename_test failed\n");
+        fprintf(stderr, "('%s', '%s') -> '%s' != '%s'\n",
+                file, prefix, result, ref);
+        exit(EXIT_FAILURE);
+    } else {
+        printf("ok: ('%s', '%s') -> '%s'\n", file, prefix, result);
+    }
+    free(result);
+}
+
+static void prefix_filename_ut(void)
+{
+    printf("-> testing prefix_filename\n");
+    prefix_filename_test("file.tif", "a_", "a_file.tif");
+    prefix_filename_test("./f.tif", "a_", "./a_f.tif");
+    prefix_filename_test("/a/b/c/q.x", "_", "/a/b/c/_q.x");
+    prefix_filename_test("", "", "");
+    prefix_filename_test("", "a", "a");
+    prefix_filename_test("a", "", "a");
+    prefix_filename_test("", "", "");
+}
+
+/** @brief Unit tests */
+void nd2tool_util_ut()
+{
+    prefix_filename_ut();
+}

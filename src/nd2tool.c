@@ -1239,6 +1239,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
         { "shake",      no_argument, NULL, 's'},
+        { "test",       no_argument, NULL, 't'},
         { "verbose",    required_argument, NULL, 'v'},
         { "version",    no_argument, NULL, 'V'},
         { "fov",        required_argument, NULL, 'F'},
@@ -1252,7 +1253,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fcdhiosv:CDV",
+    while((ch = getopt_long(argc, argv, "123456Fcdhiosv:CDVt",
                             longopts, NULL)) != -1)
     {
         switch(ch) {
@@ -1311,6 +1312,10 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             break;
         case 's':
             conf->shake = 1;
+            break;
+        case 't':
+            nd2tool_util_ut();
+            exit(EXIT_SUCCESS);
             break;
         case 'v':
             conf->verbose = atoi(optarg);
@@ -1657,8 +1662,9 @@ int nd2tool_cli(int argc, char ** argv)
 
         if(conf->deconwolf)
         {
-            char * script_name = ckcalloc(1024+strlen(info->filename), 1);
-            sprintf(script_name, "deconwolf_%s.sh", info->filename);
+            char * script_name0 = prefix_filename(info->filename, "deconwolf_");
+            char * script_name = postfix_filename(script_name0, ".sh");
+            free(script_name0);
 
             FILE * fid_dw_script = fopen(script_name, "w");
             if(fid_dw_script == NULL)
