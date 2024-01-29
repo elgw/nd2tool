@@ -1358,7 +1358,10 @@ static void show_help(char * name)
     printf("  --dry\n\t"
            "Perform a dry run, i.e. do not write files or create folders\n");
     printf("  --SpaceTx\n\t"
-           "Save one image per z-plane according to the SpaceTx convention.");
+           "Save one image per z-plane according to the SpaceTx convention.\n\t"
+           "<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>\n\t"
+           "<image_type> will be the name of the nd2file (without extension)\n\t"
+           "<round_label> will always be 0.\n\t");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
