@@ -1,3 +1,12 @@
+# 0.1.5
+- Added the **--SpaceTx** option to save one image per plane according
+  to the SpaceTx convention. This closes
+  [https://github.com/elgw/nd2tool/issues/4]. Please note that for
+  **fov_id** the name of the nd2 file is used (which can contain
+  underscores) and 0 is used for **round_label**. In other words, you
+  might need to rename the files (for example with **rename** in
+  linux) before processing them with starfish.
+
 # 0.1.4
 -  Added the **--dry** option for dry runs which tells the program not
    to create or modify any folders or files.
