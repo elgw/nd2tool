@@ -1,3 +1,9 @@
+# 0.1.6
+- Parsing Camera name and Microscope name from the text section of the
+  metadata. This part of the metadata isn't very well structured so I
+  wouldn't be surprised if it doesn't work for all files. If it
+  doesn't work no info will be printed and that's all.
+
 # 0.1.5
 - Added the **--SpaceTx** option to save one image per plane according
   to the SpaceTx convention. This closes

@@ -98,6 +98,8 @@ typedef struct
     char * outfolder;
     char * logfile;
     FILE * log;
+    char * camera_name;
+    char * microscope_name;
 } nd2info_t;
 
 /*
@@ -244,7 +246,8 @@ static void nd2info_free(nd2info_t * n)
         }
         free(n->meta_frame);
     }
-
+    free(n->camera_name);
+    free(n->microscope_name);
     free(n);
 }
 
@@ -585,8 +588,52 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
     {
         info->loopstring = strdup("Not available");
     }
-
     Lim_FileFreeString(textinfo);
+
+    /* Look for camera name and microscope name This part is fragile
+     * to how the meta data was written since it isn't structured
+     * beyond the root nodes. Here we perform basic string search in the "description" object.
+     *
+     * */
+
+    char * textinfo2 = Lim_FileGetTextinfo(nd2);
+    cJSON *j2 = cJSON_Parse(textinfo2);
+    if(j2 != NULL)
+    {
+        char * j_desc = get_json_string(j2, "description");
+        // Now loop over the lines and print matching...
+        // Camera Name: Andor Sona CSC-00633
+        // Microscope Settings:   Microscope: Ti2 Microscope
+        char * saveptr;
+        char * line = strtok_r(j_desc, "\n", &saveptr);
+        while(line != NULL)
+        {
+            if(strlen(line) > 15)
+            {
+                if(strncmp(line, "Camera Name:", 11) == 0)
+                {
+                    free(info->camera_name);
+                    info->camera_name = strdup(line+13);
+                }
+            }
+            if(strlen(line) > 40)
+            {
+                if(strncmp(line,
+                           " Microscope Settings:   Microscope: ",
+                           36) == 0)
+                {
+                    free(info->microscope_name);
+                    info->microscope_name = strdup(line+36);
+                }
+            }
+            line = strtok_r(NULL, "\n", &saveptr);
+        }
+        free(line);
+        free(j_desc);
+        cJSON_Delete(j2);
+    }
+    Lim_FileFreeString(textinfo2);
+
 
     /* This is interesting. The order probably plays a role here.
      * relevant to us is probably only the case where there are two items,
@@ -942,17 +989,17 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
                 tiff_writer_write(tw, S);
 
 
-            /* Finish this image */
-            tiff_writer_finish(tw);
-            rename(outname_tmp, outname);
-            if(conf->verbose > 0)
-            {
-                printf("done\n");
-            }
-            nd2info_log(info, "\n");
-            free(outname_tmp);
-        next_file: ;
-            free(outname);
+                /* Finish this image */
+                tiff_writer_finish(tw);
+                rename(outname_tmp, outname);
+                if(conf->verbose > 0)
+                {
+                    printf("done\n");
+                }
+                nd2info_log(info, "\n");
+                free(outname_tmp);
+            next_file: ;
+                free(outname);
             } // kk
         } // cc
     }// ff
@@ -1302,6 +1349,14 @@ nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
             meta->channels[cc]->N,
             meta->channels[cc]->P);
     fprintf(fid, "Looping: %s\n", info->loopstring);
+    if(info->camera_name)
+    {
+        fprintf(fid, "Camera: %s\n", info->camera_name);
+    }
+    if(info->microscope_name)
+    {
+        fprintf(fid, "Microscope: %s\n", info->microscope_name);
+    }
     return;
 }
 
@@ -1362,6 +1417,7 @@ static void show_help(char * name)
            "<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>\n\t"
            "<image_type> will be the name of the nd2file (without extension)\n\t"
            "<round_label> will always be 0.\n\t");
+    printf("\n");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -1595,7 +1651,13 @@ static void showmeta_exp(char * file)
     return;
 }
 
-
+/* It is JSON data, with elements
+ * - capturing
+ * - date
+ * - description
+ * - optics
+ * The elements are all text.
+ */
 static void showmeta_text(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
