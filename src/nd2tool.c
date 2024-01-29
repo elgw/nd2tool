@@ -558,11 +558,13 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
     }
 
     /* Lim_FileGetTextinfo does not return JSON. It contains
-     * information about sensor, camera, scope, tempertures etc.  Also a
-     * line like "Dimensions: XY(11) x λ(2) x Z(51)" -- the loop
-     * order. Can that be determined from the other metadata?  Note that
-     * the line like "- Step: 0.3 µm" is rounded to 1 decimal and should
-     * not be used.
+     * information about sensor, camera, scope, tempertures etc.  Also
+     * a line like "Dimensions: XY(11) x λ(2) x Z(51)" -- the loop
+     * order. Can that be determined from the other metadata?  Note
+     * that the line like "- Step: 0.3 µm" is rounded to 1 decimal and
+     * should not be used.  Could be done: Initial parsing as JSON,
+     * then we don't need the filter_textinfo function. See how it is
+     * done for camera name etc below.
      */
     char * textinfo = Lim_FileGetTextinfo(nd2);
     filter_textinfo(textinfo); /* Output filled with '\r\n\' written out as text */
