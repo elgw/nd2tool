@@ -1,4 +1,4 @@
-CC=gcc -std=gnu99
+CC=gcc
 
 MANPATH?=/usr/share/man/man1/
 DESTDIR?=/usr/local/bin/
@@ -16,7 +16,12 @@ CFLAGS=-Wall -Wextra -std=gnu99
 DEBUG?=0
 
 ifeq ($(DEBUG), 1)
-CFLAGS+=-g3 -fanalyzer
+ifeq ($(CC),gcc)
+CFLAGS+=-g3 -fanalyzer # gcc
+else
+# with clang, use scan-build make -B CC=clang DEBUG=1
+CFLAGS+=-g3
+endif
 else
 CFLAGS+=-O3 -DNDEBUG
 endif
@@ -48,7 +53,7 @@ inc=-Iinclude/
 LDFLAGS+=
 
 bin/nd2tool-linux-amd64: $(files)
-	gcc $(CFLAGS) $(files) $(shared) $(LDFLAGS) $(inc) -o bin/nd2tool-linux-amd64
+	$(CC) $(CFLAGS) $(files) $(shared) $(LDFLAGS) $(inc) -o bin/nd2tool-linux-amd64
 
 
 valgrind: bin/nd2tool-linux-amd64

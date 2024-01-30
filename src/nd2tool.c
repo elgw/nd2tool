@@ -296,13 +296,34 @@ static metadata_t * parse_metadata(const char * str)
 
     cJSON * j_channel = NULL;
     cJSON * j_channels = cJSON_GetObjectItemCaseSensitive(j, "channels");
+    if(j_channels == NULL)
+    {
+        fprintf(stderr, "Unable to find any channels in the nd2 file\n");
+        exit(EXIT_FAILURE);
+    }
+
     int cc = 0;
     cJSON_ArrayForEach(j_channel, j_channels)
     {
-        cJSON * j_chan = cJSON_GetObjectItemCaseSensitive(j_channel, "channel");
-        m->channels[cc]->name = get_json_string(j_chan, "name");
+        if(cc >= m->nchannels)
+        {
+            fprintf(stderr, "Got conflicting number of channels\n");
+            exit(EXIT_FAILURE);
+        }
 
-        NOT_NULL(m->channels[cc]);
+        cJSON * j_chan = cJSON_GetObjectItemCaseSensitive(j_channel, "channel");
+        if(j_chan == NULL)
+        {
+            fprintf(stderr, "Unable to parse the JSON data. \n"
+                    "Expected an object with name \"channel\" which was "
+                    "not found.\n");
+            exit(EXIT_FAILURE);
+        }
+
+
+        m->channels[cc]->name = get_json_string(j_chan, "name");
+        NOT_NULL(m->channels[cc]->name);
+
         get_json_double(j_chan,
                         "emissionLambdaNm",
                         &m->channels[cc]->emissionLambdaNm);
@@ -775,6 +796,11 @@ static void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
                     fprintf(stderr, "Failed to retrieve image data\n");
                 }
                 uint16_t * pixels = (uint16_t *) pic->pImageData;
+                if(pixels == NULL)
+                {
+                    fprintf(stderr, "No pixel data could be found in the image\n");
+                    exit(EXIT_FAILURE);
+                }
 
                 for(int64_t pp = 0; pp<M*N; pp++)
                 {
@@ -915,6 +941,11 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
                     fprintf(stderr, "Failed to retrieve image data\n");
                 }
                 uint16_t * pixels = (uint16_t *) pic->pImageData;
+                if(pixels == NULL)
+                {
+                    fprintf(stderr, "Failed to get pixels from the image\n");
+                    exit(EXIT_FAILURE);
+                }
 
                 for(int64_t pp = 0; pp<M*N; pp++)
                 {
@@ -1086,11 +1117,14 @@ nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
     int nFOV = info->nFOV;
     fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
 
-    int chanlen = 0;
+    int max_chan_chars = 3;
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        int len = strlen(meta->channels[cc]->name);
-        len > chanlen ? chanlen = len : 0;
+        if(meta->channels[cc]->name != NULL)
+        {
+            int len = strlen(meta->channels[cc]->name);
+            len > max_chan_chars ? max_chan_chars = len : 0;
+        }
     }
 
     for(int cc = 0; cc < meta->nchannels; cc++)
@@ -1105,7 +1139,7 @@ nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
 
         fprintf(fid, "   #%d '%*s', λ_em=%.1f",
                 cc+1,
-                chanlen,
+                max_chan_chars,
                 meta->channels[cc]->name,
                 meta->channels[cc]->emissionLambdaNm);
 
@@ -1517,13 +1551,14 @@ static void hello_log(__attribute__((unused)) ntconf_t * conf,
         fprintf(info->log, "%s ", argv[kk]);
     }
     fprintf(info->log, "\n");
-    char * hname = ckcalloc(1024, sizeof(char));
 
+    char * hname = ckcalloc(1024, sizeof(char));
     if(gethostname(hname, 1023) == 0)
     {
         fprintf(info->log, "HOSTNAME: '%s'\n", hname);
-        free(hname);
     }
+    free(hname);
+
     char * user = getenv("USER");
     if(user != NULL)
     {

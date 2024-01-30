@@ -1,6 +1,11 @@
+# 0.1.5
+- Added checks for some unlikely scenarios. Builds cleanly with clang,
+  i.e., with `scan-build make -B CC=clang DEBUG=1` as well as gcc
+  `make -B DEBUG=1`.
+
 # 0.1.4
--  Added the **--dry** option for dry runs which tells the program not
-   to create or modify any folders or files.
+- Added the **--dry** option for dry runs which tells the program not
+  to create or modify any folders or files.
 - Added the **--deconwolf** option to generate a script with commands
   to run deconwolf on the tif files (unless converted with the
   **--composite** flag).
