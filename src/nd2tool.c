@@ -3,7 +3,7 @@
 
 /* The stripped version of the header file from www.nd2sdk.com
  * where comments are removed.
-*/
+ */
 #include "Nd2ReadSdk_stripped.h"
 
 #include "tiff_util.h"
@@ -23,6 +23,11 @@ typedef struct{
     int showcoords;
     int overwrite;
     int composite;
+
+    /* One file per z-plane according to SpaceTx,
+       see https://github.com/elgw/nd2tool/issues/4 */
+    int save_individual_planes;
+
     nt_purpose purpose;
     char * fov_string; /* Specifying what fov to use */
     int meta_file;
@@ -93,11 +98,13 @@ typedef struct
     char * outfolder;
     char * logfile;
     FILE * log;
+    char * camera_name;
+    char * microscope_name;
 } nd2info_t;
 
 /*
  * Forward declarations
-*/
+ */
 
 static ntconf_t * ntconf_new(void);
 static void ntconf_free(ntconf_t * );
@@ -239,7 +246,8 @@ static void nd2info_free(nd2info_t * n)
         }
         free(n->meta_frame);
     }
-
+    free(n->camera_name);
+    free(n->microscope_name);
     free(n);
 }
 
@@ -571,11 +579,13 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
     }
 
     /* Lim_FileGetTextinfo does not return JSON. It contains
-     * information about sensor, camera, scope, tempertures etc.  Also a
-     * line like "Dimensions: XY(11) x λ(2) x Z(51)" -- the loop
-     * order. Can that be determined from the other metadata?  Note that
-     * the line like "- Step: 0.3 µm" is rounded to 1 decimal and should
-     * not be used.
+     * information about sensor, camera, scope, tempertures etc.  Also
+     * a line like "Dimensions: XY(11) x λ(2) x Z(51)" -- the loop
+     * order. Can that be determined from the other metadata?  Note
+     * that the line like "- Step: 0.3 µm" is rounded to 1 decimal and
+     * should not be used.  Could be done: Initial parsing as JSON,
+     * then we don't need the filter_textinfo function. See how it is
+     * done for camera name etc below.
      */
     char * textinfo = Lim_FileGetTextinfo(nd2);
     filter_textinfo(textinfo); /* Output filled with '\r\n\' written out as text */
@@ -601,8 +611,52 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
     {
         info->loopstring = strdup("Not available");
     }
-
     Lim_FileFreeString(textinfo);
+
+    /* Look for camera name and microscope name This part is fragile
+     * to how the meta data was written since it isn't structured
+     * beyond the root nodes. Here we perform basic string search in the "description" object.
+     *
+     * */
+
+    char * textinfo2 = Lim_FileGetTextinfo(nd2);
+    cJSON *j2 = cJSON_Parse(textinfo2);
+    if(j2 != NULL)
+    {
+        char * j_desc = get_json_string(j2, "description");
+        // Now loop over the lines and print matching...
+        // Camera Name: Andor Sona CSC-00633
+        // Microscope Settings:   Microscope: Ti2 Microscope
+        char * saveptr;
+        char * line = strtok_r(j_desc, "\n", &saveptr);
+        while(line != NULL)
+        {
+            if(strlen(line) > 15)
+            {
+                if(strncmp(line, "Camera Name:", 11) == 0)
+                {
+                    free(info->camera_name);
+                    info->camera_name = strdup(line+13);
+                }
+            }
+            if(strlen(line) > 40)
+            {
+                if(strncmp(line,
+                           " Microscope Settings:   Microscope: ",
+                           36) == 0)
+                {
+                    free(info->microscope_name);
+                    info->microscope_name = strdup(line+36);
+                }
+            }
+            line = strtok_r(NULL, "\n", &saveptr);
+        }
+        free(line);
+        free(j_desc);
+        cJSON_Delete(j2);
+    }
+    Lim_FileFreeString(textinfo2);
+
 
     /* This is interesting. The order probably plays a role here.
      * relevant to us is probably only the case where there are two items,
@@ -684,7 +738,7 @@ static void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
 }
 
 /** @brief Write an ND2 file as one file per FOV and channel */
-static void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
+static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
 {
 
     /* Prepare metadata for the tiff files */
@@ -831,10 +885,165 @@ static void nd2_to_tiff_split(void * nd2, ntconf_t * conf, nd2info_t * info)
     ttags_free(&tags);
 }
 
+
+/** @brief Write an ND2 file as one file per FOV and channel */
+static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * info)
+{
+
+    /* Prepare metadata for the tiff files */
+    ttags * tags = ttags_new();
+    {
+        char * sw_string = ckcalloc(1024, 1);
+        sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
+                info->filename);
+        ttags_set_software(tags , sw_string);
+        free(sw_string);
+    }
+
+    int nchan = info->meta_att->nchannels;
+    int M = info->meta_att->channels[0]->M;
+    int N = info->meta_att->channels[0]->N;
+    int P = info->meta_att->channels[0]->P;
+
+    ttags_set_imagesize(tags, M, N, 1);
+    ttags_set_pixelsize_nm(tags,
+                           info->meta_att->channels[0]->dx_nm,
+                           info->meta_att->channels[0]->dy_nm,
+                           info->meta_att->channels[0]->dz_nm);
+
+
+    /* We choose to extract the image data multiple times and only
+     * collect pixels from one channel at a time. This is of course
+     * slightly slower than extracting all channels for a given FOV at
+     * a time but gives more predictable memory usage. */
+
+    /* Buffer for one slice and one color */
+    uint16_t * S = ckcalloc(M*N, sizeof(uint16_t));
+    LIMPICTURE * pic = ckcalloc(1, sizeof(LIMPICTURE));
+    Lim_InitPicture(pic, M, N, 16, nchan);
+
+    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    {
+        if(conf->fov_string != NULL)
+        {
+            if(atoi(conf->fov_string) != (ff+1))
+            {
+                continue;
+            }
+        }
+
+        for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
+        {
+            for(int64_t kk = 0; kk<P; kk++) /* For each plane */
+            {
+
+                /* Write out to disk */
+                char * outname = ckcalloc(1024, 1);
+                /* SpaceTx
+                 * <image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>.
+                 * Example: nuclei-f0-r2-c3-z33.tiff
+                 */
+                sprintf(outname, "%s/%s_f%ld-r%d-c%ld-z%lu.tif",
+                        info->outfolder,
+                        info->outfolder, /* <image_type> */
+                        ff, /* <fov_id> */
+                        0, /* <round_label> */
+                        cc, /* <ch_label> */
+                        kk); /* <zplane_label> */
+
+                printf("%s ", outname);
+                nd2info_log(info, "%s ", outname);
+
+                if(conf->shake)
+                {
+                    check_stage_position(info, ff, cc);
+                }
+
+                if(conf->overwrite == 0)
+                {
+                    if(isfile(outname))
+                    {
+                        printf("-- skipping, file exists\n");
+                        nd2info_log(info, "-- skipping, file exists\n");
+
+                        goto next_file;
+                    }
+                }
+                if(conf->verbose > 0)
+                {
+                    printf("... writing ... "); fflush(stdout);
+                }
+
+                if(conf->dry)
+                {
+                    printf(" (--dry, not writing)\n");
+                    goto next_file;
+                }
+
+                /* Create temporary file */
+                char * outname_tmp = ckcalloc(strlen(outname) + 16, 1);
+
+                sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+                int tfid = 0;
+                if((tfid = mkstemp(outname_tmp)) == -1)
+                {
+                    fprintf(stderr, "Failed to create a temporary file based on pattern: %s\n", outname_tmp);
+                    exit(EXIT_FAILURE);
+                }
+                close(tfid);
+
+                tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, 1);
+
+                /* Returns interlaced data */
+                int res = Lim_FileGetImageData(nd2,
+                                               kk + ff*P, //uiSeqIndex,
+                                               pic);
+                if(res != 0)
+                {
+                    fprintf(stderr, "Failed to read from %s. At line %d\n",
+                            info->filename, __LINE__);
+                }
+
+                if( (pic->pImageData == NULL) || (pic->uiSize == 0) )
+                {
+                    fprintf(stderr, "Failed to retrieve image data\n");
+                }
+                uint16_t * pixels = (uint16_t *) pic->pImageData;
+
+                for(int64_t pp = 0; pp<M*N; pp++)
+                {
+                    S[pp] = pixels[pp*nchan+cc];
+                }
+                tiff_writer_write(tw, S);
+
+
+                /* Finish this image */
+                tiff_writer_finish(tw);
+                rename(outname_tmp, outname);
+                if(conf->verbose > 0)
+                {
+                    printf("done\n");
+                }
+                nd2info_log(info, "\n");
+                free(outname_tmp);
+            next_file: ;
+                free(outname);
+            } // kk
+        } // cc
+    }// ff
+
+    Lim_DestroyPicture(pic);
+    free(pic);
+
+    free(S);
+    ttags_free(&tags);
+}
+
+
 /** @brief Write an ND2 file as composite tif files
  *
  * One file per FOV
-*/
+ */
 static void
 nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 {
@@ -980,7 +1189,7 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 /** @brief Try to convert an ND2 file to tif
  *
  * @return EXIT_SUCCESS or EXIT_FAILURE
-*/
+ */
 static int
 nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 {
@@ -1035,7 +1244,12 @@ nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
     {
         nd2_to_tiff_composite(nd2, conf, info);
     } else {
-        nd2_to_tiff_split(nd2, conf, info);
+        if(conf->save_individual_planes)
+        {
+            nd2_to_tiff_splitC_splitZ(nd2, conf, info);
+        } else {
+            nd2_to_tiff_splitC(nd2, conf, info);
+        }
     }
 
     Lim_FileClose(nd2);
@@ -1171,6 +1385,14 @@ nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
             meta->channels[cc]->N,
             meta->channels[cc]->P);
     fprintf(fid, "Looping: %s\n", info->loopstring);
+    if(info->camera_name)
+    {
+        fprintf(fid, "Camera: %s\n", info->camera_name);
+    }
+    if(info->microscope_name)
+    {
+        fprintf(fid, "Microscope: %s\n", info->microscope_name);
+    }
     return;
 }
 
@@ -1226,6 +1448,12 @@ static void show_help(char * name)
            "for each file, generate a script to run deconwolf\n");
     printf("  --dry\n\t"
            "Perform a dry run, i.e. do not write files or create folders\n");
+    printf("  --SpaceTx\n\t"
+           "Save one image per z-plane according to the SpaceTx convention.\n\t"
+           "<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>\n\t"
+           "<image_type> will be the name of the nd2file (without extension)\n\t"
+           "<round_label> will always be 0.\n\t");
+    printf("\n");
     printf("Raw meta data extraction to stdout:\n");
     printf("  --meta\n\t all metadata.\n");
     printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
@@ -1273,6 +1501,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
         { "shake",      no_argument, NULL, 's'},
+        { "SpaceTx",    no_argument, NULL, 'S'},
         { "test",       no_argument, NULL, 't'},
         { "verbose",    required_argument, NULL, 'v'},
         { "version",    no_argument, NULL, 'V'},
@@ -1287,7 +1516,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456Fcdhiosv:CDVt",
+    while((ch = getopt_long(argc, argv, "123456FcdhiosSv:CDVt",
                             longopts, NULL)) != -1)
     {
         switch(ch) {
@@ -1346,6 +1575,9 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             break;
         case 's':
             conf->shake = 1;
+            break;
+        case 'S':
+            conf->save_individual_planes = 1;
             break;
         case 't':
             nd2tool_util_ut();
@@ -1455,7 +1687,13 @@ static void showmeta_exp(char * file)
     return;
 }
 
-
+/* It is JSON data, with elements
+ * - capturing
+ * - date
+ * - description
+ * - optics
+ * The elements are all text.
+ */
 static void showmeta_text(char * file)
 {
     void * nd2 = Lim_FileOpenForReadUtf8(file);
@@ -1538,7 +1776,7 @@ static void showmeta(ntconf_t * conf, char * file)
 
 
 static void hello_log(__attribute__((unused)) ntconf_t * conf,
-               nd2info_t * info, int argc, char ** argv)
+                      nd2info_t * info, int argc, char ** argv)
 {
     if(conf->dry)
     {
