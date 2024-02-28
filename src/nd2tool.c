@@ -39,7 +39,8 @@ typedef struct{
     int optind;
     int shake;
     int dry; /* Dry run -- don't write anything */
-    int deconwolf; /* TODO: Write deconwolf script */
+    int deconwolf; /* Write deconwolf script? */
+    int deconwolfx; /* Write deconwolf script and as for arguments */
 } ntconf_t;
 
 
@@ -163,6 +164,58 @@ static void print_web(FILE * fid);
             exit(EXIT_FAILURE);                                 \
         }                                                       \
     }                                                           \
+
+int cli_get_int(const char * prompt, const int default_value)
+{
+    printf("%s (default=%d)\n", prompt, default_value);
+    printf("> ");
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t lineSize = getline(&line, &len, stdin);
+    if(lineSize == -1)
+    {
+        exit(EXIT_FAILURE);
+    }
+    int niter = default_value;
+
+    if(lineSize == 1) // i.e. '\n'
+    {
+        printf("Using default (%d)\n", default_value);
+    } else {
+        niter = atoi(line);
+    }
+
+    if(niter < 1)
+    {
+        fprintf(stderr, "ERROR: Can't interpret '%s'\n", line);
+        exit(EXIT_FAILURE);
+    }
+    return niter;
+}
+
+char * cli_get_string(const char * prompt)
+{
+    printf("%s\n", prompt);
+    printf("> ");
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t lineSize = getline(&line, &len, stdin);
+    if(lineSize == -1)
+    {
+        exit(EXIT_FAILURE);
+    }
+    if(len == 0)
+    {
+        printf("No extra parameters given\n");
+    }
+    if(line[strlen(line)-1] == '\n')
+    {
+        line[strlen(line)-1] = '\0';
+    }
+    assert(line != NULL);
+    return line;
+}
+
 
 /** @brief Print to the log file  */
 static void
@@ -1446,6 +1499,8 @@ static void show_help(char * name)
     printf("  -C, --composite\n\t Don't split by channel\n");
     printf("  --deconwolf\n\t"
            "for each file, generate a script to run deconwolf\n");
+    printf("  --deconwolfx\n\t"
+           "like --deconwolf but will ask for some parameters interactively\n");
     printf("  --dry\n\t"
            "Perform a dry run, i.e. do not write files or create folders\n");
     printf("  --SpaceTx\n\t"
@@ -1497,6 +1552,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         { "composite",  no_argument, NULL, 'C'},
         { "dry",        no_argument, NULL, 'd'},
         { "deconwolf",  no_argument, NULL, 'D'},
+        { "deconwolfx", no_argument, NULL, 'E'},
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
@@ -1516,7 +1572,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456FcdhiosSv:CDVt",
+    while((ch = getopt_long(argc, argv, "123456FcdhiosSv:CDEVt",
                             longopts, NULL)) != -1)
     {
         switch(ch) {
@@ -1561,6 +1617,10 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             break;
         case 'D':
             conf->deconwolf = 1;
+            break;
+        case 'E':
+            conf->deconwolf = 1;
+            conf->deconwolfx = 1;
             break;
         case 'F':
             free(conf->fov_string);
@@ -1840,7 +1900,7 @@ static void nd2_show_coordinates(nd2info_t * info)
 
 /** @brief Write a script that will run deconwolf
  */
-static void nd2info_show_deconwolf(const nd2info_t * info, FILE * fid)
+static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info, FILE * fid)
 {
     metadata_t * meta = info->meta_att;
     fprintf(fid, "#!/bin/env bash\n");
@@ -1859,10 +1919,30 @@ static void nd2info_show_deconwolf(const nd2info_t * info, FILE * fid)
                 meta->channels[cc]->name);
     }
 
+    int dw_iter = 50;
+
+    if(conf->deconwolfx)
+    {
+        printf("Enter the number of iterations to use\n");
+    }
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        fprintf(fid, "iter_%s=50\n", meta->channels[cc]->name);
+        if(conf->deconwolfx)
+        {
+            dw_iter = cli_get_int(meta->channels[cc]->name, dw_iter);
+        }
+        fprintf(fid, "iter_%s=%d\n", meta->channels[cc]->name, dw_iter);
     }
+
+    char * xargs = strdup("");
+    if(conf->deconwolfx)
+    {
+        free(xargs);
+        xargs = cli_get_string("Enter any extra arguments to deconwolf");
+    }
+
+    fprintf(fid, "xargs=\"%s\"\n", xargs);
+    free(xargs);
 
     for(int ff = 0; ff  < info->nFOV; ff++)
     {
@@ -1873,7 +1953,7 @@ static void nd2info_show_deconwolf(const nd2info_t * info, FILE * fid)
             sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
-            fprintf(fid, "dw --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
+            fprintf(fid, "dw \"$xargs\" --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
                     meta->channels[cc]->name,
                     outname,
                     info->outfolder,
@@ -1950,7 +2030,7 @@ int nd2tool_cli(int argc, char ** argv)
             {
                 fprintf(stdout, "Writing to %s\n", script_name);
             }
-            nd2info_show_deconwolf(info, fid_dw_script);
+            nd2info_show_deconwolf(conf, info, fid_dw_script);
             fclose(fid_dw_script);
             make_file_executable(script_name);
 
