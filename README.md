@@ -1,4 +1,4 @@
-# nd2tool
+# nd2tool v0.1.6
 
 ## Introduction
 Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that
@@ -23,7 +23,16 @@ moment it only supports loops over XY, Color and Z, i.e., not over
 time. It is furthermore limited to nd2 files where the image data is
 stored as 16-bit unsigned int.
 
-## Example usage
+## Usage
+
+See the [man page](doc/nd2tool.txt) for the full documentation
+(i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
+
+### Basic usage -- conversion
+This will convert an nd2 file to a set of tif files. The output will
+be a folder named after the nd2 file, but without the `.nd2`
+extension.
+
 ```
 $ nd2tool iiQV015_20220630_001.nd2
 3 FOV in 4 channels:
@@ -44,8 +53,57 @@ Writing to iiQV015_20220630_001/SpGold_001.tif
 Writing to iiQV015_20220630_001/dapi_003.tif
 ```
 
-See the [man page](doc/nd2tool.txt) for the full documentation
-(i.e. `man nd2tool`) or use `nd2tool --help` for a quick recap.
+### Export the coordinates from multi-FOV images
+
+Coordinates are useful for stitching, detection of overlapping
+regions, detection of mechanical instabilities etc. The example
+command below gives output in a comma separated format (CSV).
+
+
+``` shell
+$ nd2tool --coord iMS441_20191016_001.nd2
+FOV, Channel, Z, X_um, Y_um, Z_um
+1, 1, 1, -3523.100000, 4802.500000, 2120.857777
+1, 1, 2, -3523.100000, 4802.500000, 2121.457777
+1, 1, 3, -3523.100000, 4802.500000, 2122.057777
+...
+```
+
+### Generation of deconvolution script
+nd2tool can generate scripts to use with
+[deconwolf](https://www.github.com/elgw/deconwolf/). Either it creates
+a script that has to be edited manually **--deconwolf** or it asks for
+the key parameters interactively with **--deconwolfx** as in the
+example below:
+
+``` shell
+$ nd2tool --deconwolfx iMS441_20191016_001.nd2
+Writing to deconwolf_iMS441_20191016_001.nd2.sh
+Enter the number of iterations to use
+dapi (default=50)
+> 50
+A647 (default=50)
+> 75
+Enter any extra arguments to deconwolf
+> --gpu
+```
+
+For this file the generated file was:
+
+``` shell
+cat deconwolf_iMS441_20191016_001.nd2.sh
+#!/bin/env bash
+set -e # abort on errors
+
+# PSF Generation
+dw_bw --lambda 385.000000 --resxy 108.333333 --resz 600.000000 --NA 1.400000 --ni 1.515000 'iMS441_20191016_001/PSF_dapi.tif'
+dw_bw --lambda 710.000000 --resxy 108.333333 --resz 600.000000 --NA 1.400000 --ni 1.515000 'iMS441_20191016_001/PSF_A647.tif'
+iter_dapi=50
+iter_A647=75
+xargs="--gpu"
+dw "$xargs" --iter $iter_dapi 'iMS441_20191016_001/dapi_001.tif' 'iMS441_20191016_001/PSF_dapi.tif'
+dw "$xargs" --iter $iter_A647 'iMS441_20191016_001/A647_001.tif' 'iMS441_20191016_001/PSF_A647.tif'
+```
 
 ## Installation
 
@@ -114,3 +172,5 @@ data](https://jsonformatter.org/json-viewer) Copy and paste the
 JSON output from nd2tool (**--meta-file**, **--meta-frame**,
 **--meta-exp**) here for a quick overview. See also [JSON
 specification](https://www.json.org/) if you are new to this.
+- [deconwolf](https://www.github.com/elgw/deconwolf/) for deconvolution of wide
+  field images (and possibly also other modalities).
