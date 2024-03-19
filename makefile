@@ -5,7 +5,7 @@ DESTDIR?=/usr/local/bin/
 
 LDFLAGS+=-flto \
 -lcjson \
--llimfile \
+-llimfile-shared \
 -lnd2readsdk-shared \
 -lm \
 -Llib \
@@ -45,7 +45,7 @@ src/json_util.c \
 src/srgb_from_lambda.c \
 src/nd2tool_util.c
 
-shared=lib/liblimfile.so \
+shared=lib/liblimfile-shared.so \
 lib/libnd2readsdk-shared.so
 
 inc=-Iinclude/

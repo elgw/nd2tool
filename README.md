@@ -1,4 +1,4 @@
-# nd2tool v0.1.6
+# nd2tool v0.1.7
 
 ## Introduction
 Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that
@@ -22,6 +22,9 @@ alternatives are listed in the [references](#references). At the
 moment it only supports loops over XY, Color and Z, i.e., not over
 time. It is furthermore limited to nd2 files where the image data is
 stored as 16-bit unsigned int.
+
+Supported platforms: Linux. If you want to have this running under
+macOS or Windows, let me know.
 
 ## Usage
 
@@ -111,29 +114,35 @@ The standard procedure: get required libraries, compile and then
 install. These instructions are for Ubuntu 22.04 LTS (might work on
 WSL for Windows as well).
 
+### get dependencies
 ```
-# get dependencies
 sudo apt-get update
 sudo apt-get install libcjson1 libcjson-dev libtiff5-dev build-essential
-make release  # compile
 ```
 
-After building, the preferred way to install is to first make a .deb
-file like this:
-
-```
-./makedeb_ubuntu_2204.sh
-sudo apt-get install ./nd2tool_*.deb
-# Then you can uninstall with
-# sudo apt-get remove nd2tool
+### compile
+``` shell
+mkdir build
+cd build
+cmake ..
+cmake build
 ```
 
-For systems that don't use deb files, this might work:
+### install
+Either bypass the system package manager
+``` shell
+make install
 ```
-sudo make install   # Install binary and man page
+
+or do it the proper way
+
+``` shell
+make package
+sudo apt-get install ./nd2tool-0.1.7-Linux.deb
 ```
-Please check the `makefile` so that the install paths makes sense on
-your machine if you use this install option.
+
+of course, you will need to adjust the last line to fit the system
+package manager unless you are on Ubuntu.
 
 ## Reporting bugs
 Please use [the issue tracking system on

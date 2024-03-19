@@ -1452,10 +1452,14 @@ nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
 
 static void print_version(FILE * fid)
 {
-    fprintf(fid, "nd2tool v.%s.%s.%s\n",
+    fprintf(fid, "nd2tool v.%s.%s.%s",
             ND2TOOL_VERSION_MAJOR,
             ND2TOOL_VERSION_MINOR,
             ND2TOOL_VERSION_PATCH);
+    #ifdef ND2TOOL_GIT_VERSION
+    fprintf(fid, " git:%s\n", ND2TOOL_GIT_VERSION);
+    #endif
+    fprintf(fid, "\n");
     fprintf(fid, "TIFF: '%s'\n", TIFFGetVersion());
     return;
 }
@@ -1953,7 +1957,7 @@ static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info
             sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
-            fprintf(fid, "dw \"$xargs\" --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
+            fprintf(fid, "dw ${xargs} --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
                     meta->channels[cc]->name,
                     outname,
                     info->outfolder,

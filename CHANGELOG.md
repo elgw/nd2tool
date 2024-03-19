@@ -1,5 +1,9 @@
 # Changelog for nd2tool
 
+## 0.1.7
+- Updating to Nikon libraries v 1.7.6.
+- Total switch to cmake for building and package creation.
+
 ## 0.1.6
 - Parsing Camera name and Microscope name from the text section of the
   metadata. This part of the metadata isn't very well structured so I

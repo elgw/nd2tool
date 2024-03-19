@@ -44,10 +44,46 @@ add_executable(nd2tool
 #
 target_include_directories(nd2tool PRIVATE include/)
 
+
+find_package(Git)
+
+set(ND2TOOL_GIT_VERSION "unknown")
+if(GIT_EXECUTABLE)
+  execute_process(
+    COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --broken
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE ND2TOOL_GIT_VERSION
+    RESULT_VARIABLE ERROR_CODE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+target_compile_definitions(nd2tool PUBLIC "ND2TOOL_GIT_VERSION=\"${ND2TOOL_GIT_VERSION}\"")
+
+#
+# Parse version number from src/nd2tool.h
+#
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_MAJOR
+  REGEX "#define[ ]+ND2TOOL_VERSION_MAJOR[ ]+\"[0-9]+\"")
+string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_MAJOR})
+set(ND2TOOL_VERSION_MAJOR "${CMAKE_MATCH_1}")
+
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_MINOR
+  REGEX "#define[ ]+ND2TOOL_VERSION_MINOR[ ]+\"[0-9]+\"")
+string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_MINOR})
+set(ND2TOOL_VERSION_MINOR "${CMAKE_MATCH_1}")
+
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_PATCH
+  REGEX "#define[ ]+ND2TOOL_VERSION_PATCH[ ]+\"[0-9]+\"")
+string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_PATCH})
+set(ND2TOOL_VERSION_PATCH "${CMAKE_MATCH_1}")
+
+project(nd2tool VERSION "${ND2TOOL_VERSION_MAJOR}.${ND2TOOL_VERSION_MINOR}.${ND2TOOL_VERSION_PATCH}")
+
+
 #
 # Add Nikon's library
 #
-target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/liblimfile.so")
+target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/liblimfile-shared.so")
 target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.so")
 # Copy it to the build dir upon compilation
 add_custom_command(TARGET nd2tool POST_BUILD        # Adds a post-build event to MyTest
@@ -118,6 +154,14 @@ install(TARGETS nd2tool)
 install(FILES "${CMAKE_SOURCE_DIR}/doc/nd2tool.1"
   DESTINATION "${CMAKE_INSTALL_MANDIR}/man1/" )
 install(FILES
-  "${CMAKE_SOURCE_DIR}/lib/liblimfile.so"
+  "${CMAKE_SOURCE_DIR}/lib/liblimfile-shared.so"
   "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.so"
   TYPE LIB )
+
+# https://cmake.org/cmake/help/book/mastering-cmake/chapter/Packaging%20With%20CPack.html
+SET(CPACK_GENERATOR "DEB")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "ELGW") #required
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON) # resolve dependencies automatically
+set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://www.github.com/elgw/nd2tool/")
+
+INCLUDE(CPack)
