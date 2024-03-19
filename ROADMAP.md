@@ -11,6 +11,7 @@ on time series at all (feel free to share your data).
 - [ ] Indicate where the most in focus slice is.
 - [ ] Support MACOS
 - [ ] Warn/indicate of images are overlapping.
+- [ ] Store a XXH3 or MD5 hash of the nd2 file in the log.
 
 ## Maybe some day
 - [ ] Enable shake detection by default.
