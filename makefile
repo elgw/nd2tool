@@ -9,7 +9,7 @@ LDFLAGS+=-flto \
 -lnd2readsdk-shared \
 -lm \
 -Llib \
--ltiff
+-l:libtiff.so.5
 
 CFLAGS=-Wall -Wextra -std=gnu99
 

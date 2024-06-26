@@ -135,6 +135,9 @@ endif()
 # TIFF
 #
 target_link_libraries(nd2tool tiff)
+# On Ubuntu 24, first get libtiff.so.5 into the library
+# path, then use this line instead:
+#target_link_libraries(nd2tool -l:libtiff.so.5)
 
 #
 # cJSON
