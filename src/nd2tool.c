@@ -419,21 +419,51 @@ static metadata_t * parse_metadata(const char * str)
         { /* Optical configuration*/
             cJSON * j_mic = cJSON_GetObjectItemCaseSensitive(j_channel,
                                                              "microscope");
+            if(j_mic == NULL)
+            {
+                printf("Warning: Could not find channel/microscope\n");
+                goto done_optical_configuration;
+            }
             cJSON * j_tmp = cJSON_GetObjectItemCaseSensitive(j_mic,
                                                              "immersionRefractiveIndex");
-            m->channels[cc]->immersionRefractiveIndex = j_tmp->valuedouble;
+
+            if(j_tmp == NULL)
+            {
+                printf("Warning: Could not find channel/microscope/immersionRefractiveIndex\n");
+            } else {
+                m->channels[cc]->immersionRefractiveIndex = j_tmp->valuedouble;
+            }
 
             j_tmp = cJSON_GetObjectItemCaseSensitive(j_mic,
                                                      "objectiveNumericalAperture");
-            m->channels[cc]->objectiveNumericalAperture = j_tmp->valuedouble;
+            if(j_tmp == NULL)
+            {
+                printf("Warning: Could not find channel/microscope/objectiveNumericalAperture\n");
+            } else {
+                m->channels[cc]->objectiveNumericalAperture = j_tmp->valuedouble;
+            }
 
             j_tmp = cJSON_GetObjectItemCaseSensitive(j_mic,
                                                      "objectiveMagnification");
-            m->channels[cc]->objectiveMagnification = j_tmp->valuedouble;
+            if(j_tmp == NULL)
+            {
+                printf("Warning: Could not find channel/microscope/objectiveMagnification\n");
+            } else {
+                m->channels[cc]->objectiveMagnification = j_tmp->valuedouble;
+            }
 
             j_tmp = cJSON_GetObjectItemCaseSensitive(j_mic,
                                                      "objectiveName");
-            m->channels[cc]->objectiveName = strdup(j_tmp->valuestring);
+
+            if(j_tmp == NULL)
+            {
+                printf("Warning: Could not find channel/microscope/objectiveName\n");
+            } else {
+                m->channels[cc]->objectiveName = strdup(j_tmp->valuestring);
+            }
+
+        done_optical_configuration: ;
+
         }
         cc++;
     }

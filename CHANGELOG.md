@@ -1,5 +1,50 @@
 # Changelog for nd2tool
 
+## 0.1.8
+
+- Bug fix, avoids crashing if the metadata for the objective is
+  missing. This happened in an image from a microscope with a broken
+  objective turret.
+
+  After the fix, this is what nd2tool reports:
+
+  ```
+  nd2tool iiJPC526_20240828_001.nd2 --info
+  Warning: Could not find channel/microscope/immersionRefractiveIndex
+  Warning: Could not find channel/microscope/objectiveNumericalAperture
+  5 FOV in 3 channels:
+     #1 'a594', λ_em=590.0 #FFB300
+     #2 ' tmr', λ_em=542.0 #00FF00
+     #3 'dapi', λ_em=432.0 #9900FF
+  Bits per pixel: 16, significant: 16
+  dx=1000.0 nm, dy=1000.0 nm, dz=300.0 nm
+  NA=0.000, ni=0.000
+  Objective Name: Uncalibrated
+  Objective Magnification: 1.0X
+  Volume size: 1024 x 1024 x 41
+  Looping: Dimensions: XY(5) x λ(3) x Z(41)
+  Camera: Andor DU-888 X-9877
+  ```
+
+  If it wasn't obvious that the information was wrong here, we could
+  make a special case when the objective name is set to `Uncalibrated`.
+
+  In that case it does not make sense to report these values (found in
+  the metadata!)
+
+  ```
+  Objective Magnification: 1.0X
+  dx=1000.0 nm, dy=1000.0 nm
+  ```
+
+  Furthermore we should also prevent nd2tool from reporting these
+  default values:
+
+  ```
+  NA=0.000, ni=0.000
+  ```
+
+
 ## 0.1.7
 - Updating to Nikon libraries v 1.7.6.
 - Total switch to cmake for building and package creation.

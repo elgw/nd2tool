@@ -1,4 +1,4 @@
-# nd2tool v0.1.7
+# nd2tool v0.1.8
 
 ## Introduction
 Provides the command line tool, [**nd2tool**](doc/nd2tool.txt), that
