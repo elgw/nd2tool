@@ -41,6 +41,7 @@ typedef struct{
     int dry; /* Dry run -- don't write anything */
     int deconwolf; /* Write deconwolf script? */
     int deconwolfx; /* Write deconwolf script and as for arguments */
+    int deconwolf_dots; /* Write script for dot detection */
 } ntconf_t;
 
 
@@ -1505,6 +1506,8 @@ static void show_help(char * name)
            "for each file, generate a script to run deconwolf\n");
     printf("  --deconwolfx\n\t"
            "like --deconwolf but will ask for some parameters interactively\n");
+    printf(" --deconwolf_dots\n\t"
+           "write a script for dot detection with `dw dots`\n");
     printf("  --dry\n\t"
            "Perform a dry run, i.e. do not write files or create folders\n");
     printf("  --SpaceTx\n\t"
@@ -1557,6 +1560,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         { "dry",        no_argument, NULL, 'd'},
         { "deconwolf",  no_argument, NULL, 'D'},
         { "deconwolfx", no_argument, NULL, 'E'},
+        { "deconwolf_dots", no_argument, NULL, 'G'},
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
@@ -1576,7 +1580,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456FcdhiosSv:CDEVt",
+    while((ch = getopt_long(argc, argv, "123456CDEFGSVcdhiosv:t",
                             longopts, NULL)) != -1)
     {
         switch(ch) {
@@ -1629,6 +1633,9 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         case 'F':
             free(conf->fov_string);
             conf->fov_string = strdup(optarg);
+            break;
+        case 'G':
+            conf->deconwolf_dots = 1;
             break;
         case 'h':
             show_help(argv[0]);
@@ -1970,6 +1977,69 @@ static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info
     return;
 }
 
+/* Print out how to detect the dots using `dw dots` */
+static void
+nd2info_show_deconwolf_dots(const ntconf_t * conf,
+                            const nd2info_t * info,
+                            FILE * fid)
+{
+    metadata_t * meta = info->meta_att;
+    fprintf(fid, "#!/bin/env bash\n");
+    fprintf(fid, "set -e # abort on errors\n");
+    fprintf(fid, "\n");
+    fprintf(fid, "# dot detection with dw dots\n\n");
+
+    char * xargs = strdup("--fitting");
+
+    fprintf(fid, "# --overwrite\n");
+    fprintf(fid, "xargs=\"%s\"\n", xargs);
+    free(xargs);
+
+    fprintf(fid, "\n");
+    fprintf(fid, "# set to \"\" to run on non-deconvolved images\n");
+    fprintf(fid, "prefix=\"dw_\"\n");
+    fprintf(fid, "\n");
+
+    fprintf(fid, "# Set to 0 to skip a channel\n");
+    for(int cc = 0; cc < meta->nchannels; cc++)
+    {
+        fprintf(fid, "use_%s=1\n", info->meta_att->channels[cc]->name);
+    }
+    fprintf(fid, "\n");
+
+    for(int ff = 0; ff  < info->nFOV; ff++)
+    {
+        for(int cc = 0; cc < meta->nchannels; cc++)
+        {
+            /* Write out to disk */
+            char * outname = ckcalloc(1024, 1);
+            sprintf(outname, "%s/${prefix}%s_%03d.tif", info->outfolder,
+                    info->meta_att->channels[cc]->name, ff+1);
+            fprintf(fid, "if [[ $use_%s -eq 1 ]]\n", info->meta_att->channels[cc]->name);
+
+            fprintf(fid, "then\n");
+
+            fprintf(fid, "   dw dots ${xargs} %s --NA %.2f --ni %.2f --dx %.1f --dz %.1f --lambda %.0f\n",
+                    outname,
+                    info->meta_att->channels[cc]->objectiveNumericalAperture,
+                    info->meta_att->channels[cc]->immersionRefractiveIndex,
+                    info->meta_att->channels[cc]->dx_nm,
+                    info->meta_att->channels[cc]->dz_nm,
+                    info->meta_att->channels[cc]->emissionLambdaNm
+                    );
+            fprintf(fid, "fi\n");
+            free(outname);
+        }
+    }
+
+    if(conf->verbose > 0)
+    {
+        printf("Please set xargs and prefix before running the script\n");
+    }
+    return;
+}
+
+
 /** @brief Command line interface to nd2tool */
 int nd2tool_cli(int argc, char ** argv)
 {
@@ -2035,6 +2105,31 @@ int nd2tool_cli(int argc, char ** argv)
                 fprintf(stdout, "Writing to %s\n", script_name);
             }
             nd2info_show_deconwolf(conf, info, fid_dw_script);
+            fclose(fid_dw_script);
+            make_file_executable(script_name);
+
+            free(script_name);
+            goto cleanup_file;
+        }
+
+        if(conf->deconwolf_dots)
+        {
+            char * script_name0 = prefix_filename(info->filename, "deconwolf_dots_");
+            char * script_name = postfix_filename(script_name0, ".sh");
+            free(script_name0);
+
+            FILE * fid_dw_script = fopen(script_name, "w");
+            if(fid_dw_script == NULL)
+            {
+                fprintf(stderr, "Unable to open %s for writing\n", script_name);
+                free(script_name);
+                exit(EXIT_FAILURE);
+            }
+            if(conf->verbose > 0)
+            {
+                fprintf(stdout, "Writing to %s\n", script_name);
+            }
+            nd2info_show_deconwolf_dots(conf, info, fid_dw_script);
             fclose(fid_dw_script);
             make_file_executable(script_name);
 
