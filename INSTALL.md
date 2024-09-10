@@ -35,7 +35,7 @@ sudo make install
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 ```
 
-To make the last line permanent, see [#library_paths] below
+To make the last line permanent, see [library paths](#library-paths) below
 
 ## libtiff5 only
 As a side note, it is possible to use only libtiff5. In that case
