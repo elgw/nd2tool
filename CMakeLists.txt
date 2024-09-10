@@ -14,7 +14,10 @@ cmake_minimum_required(VERSION 3.9)
 
 project(nd2tool
   DESCRIPTION "convert Nikon nd2 files to tif"
-  LANGUAGES C)
+  LANGUAGES C
+C)
+
+enable_language(C)
 
 set (CMAKE_C_STANDARD 11)
 
