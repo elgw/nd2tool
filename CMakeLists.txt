@@ -14,12 +14,16 @@ cmake_minimum_required(VERSION 3.9)
 
 project(nd2tool
   DESCRIPTION "convert Nikon nd2 files to tif"
-  LANGUAGES C
-C)
+  HOMEPAGE_URL "https://github.com/elgw/nd2tool/"
+  VERSION "0.1.8"
+  LANGUAGES C)
 
 enable_language(C)
 
 set (CMAKE_C_STANDARD 11)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h)
 
 option (ENABLE_NATIVE_OPTIMIZATION "Enable non-portable optimizations" OFF)
 
@@ -61,26 +65,6 @@ if(GIT_EXECUTABLE)
     )
 endif()
 target_compile_definitions(nd2tool PUBLIC "ND2TOOL_GIT_VERSION=\"${ND2TOOL_GIT_VERSION}\"")
-
-#
-# Parse version number from src/nd2tool.h
-#
-file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_MAJOR
-  REGEX "#define[ ]+ND2TOOL_VERSION_MAJOR[ ]+\"[0-9]+\"")
-string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_MAJOR})
-set(ND2TOOL_VERSION_MAJOR "${CMAKE_MATCH_1}")
-
-file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_MINOR
-  REGEX "#define[ ]+ND2TOOL_VERSION_MINOR[ ]+\"[0-9]+\"")
-string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_MINOR})
-set(ND2TOOL_VERSION_MINOR "${CMAKE_MATCH_1}")
-
-file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/nd2tool.h ND2TOOL_VERSION_PATCH
-  REGEX "#define[ ]+ND2TOOL_VERSION_PATCH[ ]+\"[0-9]+\"")
-string(REGEX MATCH "\"([0-9]+)\"" _ ${ND2TOOL_VERSION_PATCH})
-set(ND2TOOL_VERSION_PATCH "${CMAKE_MATCH_1}")
-
-project(nd2tool VERSION "${ND2TOOL_VERSION_MAJOR}.${ND2TOOL_VERSION_MINOR}.${ND2TOOL_VERSION_PATCH}")
 
 
 #

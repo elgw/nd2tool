@@ -1,0 +1,10 @@
+#pragma once
+
+// version.h is generated from version.h.in by cmake
+
+#define ND2TOOL_VERSION_MAJOR "${nd2tool_VERSION_MAJOR}"
+#define ND2TOOL_VERSION_MINOR "${nd2tool_VERSION_MINOR}"
+#define ND2TOOL_VERSION_PATCH "${nd2tool_VERSION_PATCH}"
+#define nd2tool_version ND2TOOL_VERSION_MAJOR "." \
+    ND2TOOL_VERSION_MINOR "." \
+    ND2TOOL_VERSION_PATCH
