@@ -114,7 +114,7 @@ static void ntconf_free(ntconf_t * );
 /* Main interface for querying nd2 metadata */
 static nd2info_t * nd2info(ntconf_t *, const char * file);
 static void nd2info_free(nd2info_t * n);
-static void nd2info_print(ntconf_t *, FILE *, const nd2info_t *);
+static void nd2info_print(const ntconf_t *, FILE *, const nd2info_t *);
 static nd2info_t * nd2info_new(ntconf_t * conf);
 
 /* Utility functions */
@@ -166,31 +166,67 @@ static void print_web(FILE * fid);
         }                                                       \
     }                                                           \
 
-int cli_get_int(const char * prompt, const int default_value)
+
+static int
+cli_get_int(const char * prompt,
+            const int default_value,
+            const int min_value,
+            const int max_value)
 {
-    printf("%s (default=%d)\n", prompt, default_value);
-    printf("> ");
+    printf("%s (default=%d, min=%d, max=%d)\n",
+           prompt,
+           default_value,
+           min_value, max_value);
+
+
+    int niter = default_value;
+    int accepted = 0;
+    int invalid = 0;
+
     char *line = NULL;
     size_t len = 0;
-    ssize_t lineSize = getline(&line, &len, stdin);
-    if(lineSize == -1)
+    while(accepted == 0)
     {
-        exit(EXIT_FAILURE);
-    }
-    int niter = default_value;
+        invalid = 0;
+        printf("> ");
+        ssize_t lineSize = getline(&line, &len, stdin);
+        if(lineSize == -1)
+        {
+            exit(EXIT_FAILURE);
+        }
 
-    if(lineSize == 1) // i.e. '\n'
-    {
-        printf("Using default (%d)\n", default_value);
-    } else {
-        niter = atoi(line);
+        if(lineSize == 1) // i.e. '\n'
+        {
+            printf("Using default (%d)\n", default_value);
+            niter = default_value;
+            accepted = 1;
+        } else {
+            errno = 0;
+            char * endptr = line;
+            int ret = strtol(line, &endptr, 10);
+            if( (errno == 0) & (endptr != line) )
+            {
+                niter = ret;
+            } else {
+                invalid = 1;
+            }
+        }
+
+        if(niter < min_value || niter > max_value)
+        {
+            invalid = 1;
+        }
+
+        if(invalid == 1)
+        {
+            printf(" ! Invalid input, please provide a value in the range [%d, %d]\n",
+                   min_value, max_value);
+            accepted = 0;
+        } else {
+            accepted = 1;
+        }
     }
 
-    if(niter < 1)
-    {
-        fprintf(stderr, "ERROR: Can't interpret '%s'\n", line);
-        exit(EXIT_FAILURE);
-    }
     return niter;
 }
 
@@ -1402,7 +1438,7 @@ parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
 
 
 static void
-nd2info_print(ntconf_t * conf, FILE * fid, const nd2info_t * info)
+nd2info_print(const ntconf_t * conf, FILE * fid, const nd2info_t * info)
 {
     if(conf->dry)
     {
@@ -1964,15 +2000,25 @@ static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info
 
     if(conf->deconwolfx)
     {
-        printf("Enter the number of iterations to use\n");
+        nd2info_print(conf, stdout, info);
+        printf("Enter the number of iterations to use for each channel\n");
+        printf("To skip this channel, set the number of iterations to 0\n");
     }
+    assert(meta->nchannels < 1000);
+    int use_channel[meta->nchannels];
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
         if(conf->deconwolfx)
         {
-            dw_iter = cli_get_int(meta->channels[cc]->name, dw_iter);
+            dw_iter = cli_get_int(meta->channels[cc]->name, dw_iter, 0, 1000);
         }
         fprintf(fid, "iter_%s=%d\n", meta->channels[cc]->name, dw_iter);
+        if(dw_iter > 0)
+        {
+            use_channel[cc] = 1;
+        } else {
+            use_channel[cc] = 0;
+        }
     }
 
     char * xargs = strdup("");
@@ -1989,6 +2035,10 @@ static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info
     {
         for(int cc = 0; cc < meta->nchannels; cc++)
         {
+            if(use_channel[cc] == 0)
+            {
+                continue;
+            }
             /* Write out to disk */
             char * outname = ckcalloc(1024, 1);
             sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
