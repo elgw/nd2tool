@@ -42,6 +42,8 @@ typedef struct{
     int deconwolf; /* Write deconwolf script? */
     int deconwolfx; /* Write deconwolf script and as for arguments */
     int deconwolf_dots; /* Write script for dot detection */
+
+    char * dwargs; /* Extra arguments to dw */
 } ntconf_t;
 
 
@@ -230,9 +232,14 @@ cli_get_int(const char * prompt,
     return niter;
 }
 
-char * cli_get_string(const char * prompt)
+char * cli_get_string(const char * prompt, const char * standard)
 {
-    printf("%s\n", prompt);
+    if(standard)
+    {
+        printf("%s (default: %s)\n", prompt, standard);
+    } else {
+        printf("%s\n", prompt);
+    }
     printf("> ");
     char *line = NULL;
     size_t len = 0;
@@ -241,10 +248,23 @@ char * cli_get_string(const char * prompt)
     {
         exit(EXIT_FAILURE);
     }
-    if(len == 0)
+
+    if( (len == 0) | // no line allocated/returned
+        (lineSize == 1) ) // just '\n'
     {
-        printf("No extra parameters given\n");
+        free(line);
+        if(standard)
+        {
+            printf("Using the defaults\n");
+            line = strdup(standard);
+            return line;
+        } else {
+            printf("No extra parameters given\n");
+            line = strdup("");
+            return line;
+        }
     }
+// use provided line after stripping
     if(line[strlen(line)-1] == '\n')
     {
         line[strlen(line)-1] = '\0';
@@ -1610,9 +1630,10 @@ static ntconf_t * ntconf_new(void)
 
 static void ntconf_free(ntconf_t * conf)
 {
-    if(conf->fov_string != NULL)
+    if(conf != NULL)
     {
         free(conf->fov_string);
+        free(conf->dwargs);
     }
     free(conf);
 }
@@ -1977,7 +1998,8 @@ static void nd2_show_coordinates(nd2info_t * info)
 
 /** @brief Write a script that will run deconwolf
  */
-static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info, FILE * fid)
+static void
+nd2info_show_deconwolf(ntconf_t * conf, const nd2info_t * info, FILE * fid)
 {
     metadata_t * meta = info->meta_att;
     fprintf(fid, "#!/bin/env bash\n");
@@ -2025,7 +2047,9 @@ static void nd2info_show_deconwolf(const ntconf_t * conf, const nd2info_t * info
     if(conf->deconwolfx)
     {
         free(xargs);
-        xargs = cli_get_string("Enter any extra arguments to deconwolf");
+        xargs = cli_get_string("Enter any extra arguments to deconwolf", conf->dwargs);
+        free(conf->dwargs);
+        conf->dwargs = strdup(xargs);
     }
 
     fprintf(fid, "xargs=\"%s\"\n", xargs);
