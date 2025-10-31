@@ -10,6 +10,8 @@
 #include "json_util.h"
 #include "srgb_from_lambda.h"
 
+typedef int64_t i64;
+
 typedef enum {
     CONVERT_TO_TIF,
     SHOW_METADATA
@@ -42,6 +44,11 @@ typedef struct{
     int deconwolf; /* Write deconwolf script? */
     int deconwolfx; /* Write deconwolf script and as for arguments */
     int deconwolf_dots; /* Write script for dot detection */
+
+    /* If only extracting a subset of the slices */
+    int use_range;
+    int range_from;
+    int range_to;
 
     char * dwargs; /* Extra arguments to dw */
 } ntconf_t;
@@ -877,7 +884,7 @@ static void ensure_output_folder(ntconf_t * conf, nd2info_t * info)
     return;
 }
 
-/** @brief Write an ND2 file as one file per FOV and channel */
+/** @brief Write an ND2 file as one file per FOV and channel. Default option. */
 static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
 {
 
@@ -913,7 +920,7 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
     LIMPICTURE * pic = ckcalloc(1, sizeof(LIMPICTURE));
     Lim_InitPicture(pic, M, N, 16, nchan);
 
-    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
         if(conf->fov_string != NULL)
         {
@@ -923,7 +930,7 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
             }
         }
 
-        for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
+        for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
             char * outname = ckcalloc(1024, 1);
@@ -973,7 +980,26 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
 
             tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P);
 
-            for(int64_t kk = 0; kk<P; kk++) /* For each plane */
+            i64 p0 = 0;
+            i64 p1 = P;
+            /* For each plane */
+            if(conf->use_range)
+            {
+                p0 = conf->range_from-1;
+                p1 = conf->range_to;
+                if(p0 < 0)
+                {
+                    printf("Invalid slice range\n");
+                    exit(EXIT_FAILURE);
+                }
+                if(p1 > P)
+                {
+                    printf("Invalid slice range\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            for(i64 kk = p0; kk < p1; kk++)
             {
                 /* Returns interlaced data */
                 int res = Lim_FileGetImageData(nd2,
@@ -996,7 +1022,7 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
                     exit(EXIT_FAILURE);
                 }
 
-                for(int64_t pp = 0; pp<M*N; pp++)
+                for(i64 pp = 0; pp<M*N; pp++)
                 {
                     S[pp] = pixels[pp*nchan+cc];
                 }
@@ -1062,7 +1088,7 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
     LIMPICTURE * pic = ckcalloc(1, sizeof(LIMPICTURE));
     Lim_InitPicture(pic, M, N, 16, nchan);
 
-    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
         if(conf->fov_string != NULL)
         {
@@ -1072,9 +1098,9 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
             }
         }
 
-        for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
+        for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
         {
-            for(int64_t kk = 0; kk<P; kk++) /* For each plane */
+            for(i64 kk = 0; kk<P; kk++) /* For each plane */
             {
 
                 /* Write out to disk */
@@ -1150,7 +1176,7 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
                 }
                 uint16_t * pixels = (uint16_t *) pic->pImageData;
 
-                for(int64_t pp = 0; pp<M*N; pp++)
+                for(i64 pp = 0; pp<M*N; pp++)
                 {
                     S[pp] = pixels[pp*nchan+cc];
                 }
@@ -1225,7 +1251,7 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
 
 
-    for(int64_t ff = 0; ff<info->nFOV; ff++) /* For each FOV */
+    for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
         if(conf->fov_string != NULL)
         {
@@ -1270,9 +1296,9 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
         tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P*nchan);
 
-        for(int64_t kk = 0; kk<P; kk++) /* For each plane */
+        for(i64 kk = 0; kk<P; kk++) /* For each plane */
         {
-            for(int64_t cc = 0; cc<nchan; cc++) /* For each channel */
+            for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
             {
 
                 /* Returns interlaced data */
@@ -1296,7 +1322,7 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
                     exit(EXIT_FAILURE);
                 }
 
-                for(int64_t pp = 0; pp<M*N; pp++)
+                for(i64 pp = 0; pp<M*N; pp++)
                 {
                     S[pp] = pixels[pp*nchan+cc];
                 }
@@ -1587,6 +1613,9 @@ static void show_help(char * name)
     printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
     printf("  -s, --shake\n\t Enable experimental shake detection\n");
     printf("  --fov n\n\t Only extract Field Of View #n\n");
+    printf("  --slice '[a, b]'\n\t"
+           "Where range is a json array, for example [2, 10]\n\t"
+           "Only extract slices in the 1-indexed range [a, b]\n");
     printf("  -C, --composite\n\t Don't split by channel\n");
     printf("  --deconwolf\n\t"
            "for each file, generate a script to run deconwolf\n");
@@ -1638,6 +1667,45 @@ static void ntconf_free(ntconf_t * conf)
     free(conf);
 }
 
+static int parse_slice_range(const char * str, int * a, int *b)
+{
+    /* Parse a json formatted range from the string, for example
+     [2, 10] sets a to 2 and b to 10
+    */
+    cJSON *j = cJSON_Parse(str);
+    if(j == NULL)
+    {
+        return EXIT_FAILURE;
+    }
+    if(cJSON_GetArraySize(j) != 2)
+    {
+        printf("Array has wrong size\n");
+        goto fail;
+    }
+
+    cJSON * ja = cJSON_GetArrayItem(j, 0);
+    if (cJSON_IsNumber(ja))
+    {
+        *a = ja->valueint;
+    } else {
+        goto fail;
+    }
+
+    cJSON * jb = cJSON_GetArrayItem(j, 1);
+    if (cJSON_IsNumber(jb))
+    {
+        *b = jb->valueint;
+    } else {
+        goto fail;
+    }
+
+    cJSON_Delete(j);
+    return EXIT_SUCCESS;
+
+ fail:
+    cJSON_Delete(j);
+    return EXIT_FAILURE;
+}
 
 static int argparse(ntconf_t * conf, int argc, char ** argv)
 {
@@ -1651,6 +1719,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
         { "help",       no_argument, NULL, 'h'},
         { "info",       no_argument, NULL, 'i'},
         { "overwrite",  no_argument, NULL, 'o'},
+        { "slice",      required_argument, NULL, 'r'},
         { "shake",      no_argument, NULL, 's'},
         { "SpaceTx",    no_argument, NULL, 'S'},
         { "test",       no_argument, NULL, 't'},
@@ -1667,7 +1736,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
     };
     int ch;
 
-    while((ch = getopt_long(argc, argv, "123456CDEFGSVcdhiosv:t",
+    while((ch = getopt_long(argc, argv, "123456CDEFGSVcdhior:sv:t",
                             longopts, NULL)) != -1)
     {
         switch(ch) {
@@ -1730,6 +1799,19 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             break;
         case 'o':
             conf->overwrite = 1;
+            break;
+        case 'r':
+            int a, b;
+            if(parse_slice_range(optarg, &a, &b) == 0)
+            {
+                conf->use_range = 1;
+                conf->range_from = a;
+                conf->range_to = b;
+            } else {
+                printf("Unable to parse range from %s\n", optarg);
+                printf("When using --slice make sure to quote the range, for example:\n"
+                       "nd2tool --slice '[2, 20]' ...\n");
+            }
             break;
         case 's':
             conf->shake = 1;
