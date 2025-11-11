@@ -110,6 +110,8 @@ dw "$xargs" --iter $iter_A647 'iMS441_20191016_001/A647_001.tif' 'iMS441_2019101
 
 ## Installation
 
+The simplest way to use nd2tool is to download the AppImage, see the [releases](https://www.github.com/elgw/nd2tool/releases)
+
 The standard procedure: get required libraries, compile and then
 install. These instructions are for Ubuntu 22.04 LTS (might work on
 WSL for Windows as well).
