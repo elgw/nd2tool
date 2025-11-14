@@ -10,7 +10,7 @@
 # Please note that this will remove also the libraries that might be
 # used by other programs.
 
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.20)
 
 project(nd2tool
   DESCRIPTION "convert Nikon nd2 files to tif"
@@ -133,6 +133,7 @@ endif()
 #
 
 find_library(MATH_LIBRARY m)
+
 if(MATH_LIBRARY)
   target_link_libraries(nd2tool ${MATH_LIBRARY})
 endif()
@@ -153,7 +154,12 @@ target_link_libraries(nd2tool ${TIFF_LIBRARIES})
 # cJSON
 #
 
-find_package(cjson REQUIRED)
+# Not sure if this works on macos because of a more recent version
+# of cmake or because the homebrew package contains some extra files
+if(APPLE)
+  find_package(cjson REQUIRED)
+endif()
+
 target_link_libraries(nd2tool cjson)
 
 # Enable -flto (GCC) and similar if available, see
