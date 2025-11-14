@@ -934,9 +934,14 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
         {
             /* Write out to disk */
             char * outname = ckcalloc(1024, 1);
-            sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
+            sprintf(outname, "%s/%s_%03" PRId64 ".tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
 
+	    if(conf->verbose > 1)
+	      {
+		printf("outfolder: %s\n", info->outfolder);
+		printf("channel name: %s\n", info->meta_att->channels[cc]->name);
+	      }
             printf("%s ", outname);
             nd2info_log(info, "%s ", outname);
 
@@ -1109,7 +1114,7 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
                  * <image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>.
                  * Example: nuclei-f0-r2-c3-z33.tiff
                  */
-                sprintf(outname, "%s/%s_f%ld-r%d-c%ld-z%lu.tif",
+                sprintf(outname, "%s/%s_f%" PRId64 "-r%d-c%" PRIu64 "-z%" PRIu64 ".tif",
                         info->outfolder,
                         info->outfolder, /* <image_type> */
                         ff, /* <fov_id> */
@@ -1263,80 +1268,80 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
         /* Write out to disk */
         char * outname = ckcalloc(1024, 1);
-        sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
+        sprintf(outname, "%s/%s_%03" PRId64 ".tif", info->outfolder,
                 "composite", ff+1);
 
         printf("%s ", outname);
         nd2info_log(info, "%s ", outname);
 
         if(conf->overwrite == 0)
-        {
+	  {
             if(isfile(outname))
-            {
+	      {
                 printf("-- skipping, file exists\n");
                 nd2info_log(info, "-- skipping, file exists\n");
                 goto next_file;
-            }
-        }
+	      }
+	  }
         if(conf->verbose > 0)
-        {
+	  {
             printf("... writing ... "); fflush(stdout);
-        }
+	  }
 
         /* Create temporary file */
         char * outname_tmp = ckcalloc(strlen(outname) + 16, 1);
         sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
         int tfid = 0;
         if((tfid = mkstemp(outname_tmp)) == -1)
-        {
+	  {
             fprintf(stderr, "Failed to create a temporary file based on pattern: %s\n", outname_tmp);
             exit(EXIT_FAILURE);
-        }
+	  }
         close(tfid);
 
         tiff_writer_t * tw = tiff_writer_init(outname_tmp, tags, M, N, P*nchan);
 
         for(i64 kk = 0; kk<P; kk++) /* For each plane */
-        {
+	  {
             for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
-            {
+	      {
 
                 /* Returns interlaced data */
                 int res = Lim_FileGetImageData(nd2,
                                                kk + ff*P, //uiSeqIndex,
                                                pic);
                 if(res != 0)
-                {
+		  {
                     fprintf(stderr, "Failed to read from %s. At line %d\n",
                             info->filename, __LINE__);
-                }
+		  }
 
                 if( (pic->pImageData == NULL) || (pic->uiSize == 0) )
-                {
+		  {
                     fprintf(stderr, "Failed to retrieve image data\n");
-                }
+		  }
                 uint16_t * pixels = (uint16_t *) pic->pImageData;
                 if(pixels == NULL)
-                {
+		  {
                     fprintf(stderr, "Failed to get pixels from the image\n");
                     exit(EXIT_FAILURE);
-                }
+		  }
 
                 for(i64 pp = 0; pp<M*N; pp++)
-                {
+		  {
                     S[pp] = pixels[pp*nchan+cc];
-                }
+		  }
                 tiff_writer_write(tw, S);
-            } // cc
+	      } // cc
 
-        } // kk
+	  } // kk
         /* Finish this image */
         tiff_writer_finish(tw);
         rename(outname_tmp, outname);
         if(conf->verbose > 0)
-        {
+	  {
             printf("done\n");
-        }
+	  }
         nd2info_log(info, "\n");
         free(outname_tmp);
     next_file: ;
@@ -1359,459 +1364,461 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 static int
 nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
 {
-    void * nd2 = open_nd2(conf, info->filename);
-    if(nd2 == NULL)
+  void * nd2 = open_nd2(conf, info->filename);
+  if(nd2 == NULL)
     {
-        fprintf(stderr, "Failed to read from %s\n", info->filename);
-        return EXIT_FAILURE;
+      fprintf(stderr, "Failed to read from %s\n", info->filename);
+      return EXIT_FAILURE;
     }
 
-    ensure_output_folder(conf, info);
-    if(info->outfolder == NULL)
+  ensure_output_folder(conf, info);
+  if(info->outfolder == NULL)
     {
-        fprintf(stderr, "Failed to create the output folder\n");
-        return EXIT_FAILURE;
+      fprintf(stderr, "Failed to create the output folder\n");
+      return EXIT_FAILURE;
     }
 
-    if(info->file_att->bitsPerComponentInMemory != 16)
+  if(info->file_att->bitsPerComponentInMemory != 16)
     {
-        fprintf(stderr, "Can only convert files with 16 bit per pixel.\n"
-                "This file has %d\n",
-                info->file_att->bitsPerComponentInMemory);
-        return EXIT_FAILURE;
+      fprintf(stderr, "Can only convert files with 16 bit per pixel.\n"
+	      "This file has %d\n",
+	      info->file_att->bitsPerComponentInMemory);
+      return EXIT_FAILURE;
     }
 
-    info->logfile = ckcalloc(strlen(info->outfolder) + 128, 1);
-    sprintf(info->logfile, "%s/nd2tool.log.txt",
-            info->outfolder);
+  info->logfile = ckcalloc(strlen(info->outfolder) + 128, 1);
+  sprintf(info->logfile, "%s/nd2tool.log.txt",
+	  info->outfolder);
 
-    if(conf->verbose > 1)
+  if(conf->verbose > 1)
     {
-        printf("Log file %s\n", info->logfile);
+      printf("Log file %s\n", info->logfile);
     }
 
-    if(conf->dry)
+  if(conf->dry)
     {
-        printf("Not creating log file (%s) (--dry)\n", info->logfile);
+      printf("Not creating log file (%s) (--dry)\n", info->logfile);
     } else {
-        info->log = fopen(info->logfile, "a");
-        if(info->log == NULL)
-        {
-            fprintf(stderr, "Unable to create the log file: %s\n",
-                    info->logfile);
-            exit(EXIT_FAILURE);
-        }
-        /* A newline will separate what is written to the log this time to
-           what was already written. */
-        nd2info_log(info, "\n");
-    }
+    info->log = fopen(info->logfile, "a");
+    if(info->log == NULL)
+      {
+	fprintf(stderr, "Unable to create the log file: %s\n",
+		info->logfile);
+	exit(EXIT_FAILURE);
+      }
+    /* A newline will separate what is written to the log this time to
+       what was already written. */
+    nd2info_log(info, "\n");
+  }
 
-    if(conf->composite)
+  if(conf->composite)
     {
-        nd2_to_tiff_composite(nd2, conf, info);
+      nd2_to_tiff_composite(nd2, conf, info);
     } else {
-        if(conf->save_individual_planes)
-        {
-            nd2_to_tiff_splitC_splitZ(nd2, conf, info);
-        } else {
-            nd2_to_tiff_splitC(nd2, conf, info);
-        }
+    if(conf->save_individual_planes)
+      {
+	nd2_to_tiff_splitC_splitZ(nd2, conf, info);
+      } else {
+      nd2_to_tiff_splitC(nd2, conf, info);
     }
+  }
 
-    Lim_FileClose(nd2);
-    return EXIT_SUCCESS;
+  Lim_FileClose(nd2);
+  return EXIT_SUCCESS;
 }
 
 static void
 parse_stagePosition(const char * frameMeta, int nchannels, double * pos)
 {
 
-    cJSON *json = cJSON_Parse(frameMeta);
-    if (json == NULL)
+  cJSON *json = cJSON_Parse(frameMeta);
+  if (json == NULL)
     {
-        fprintf(stderr, "Error parsing stagePosition\n");
-        const char *error_ptr = cJSON_GetErrorPtr();
-        if (error_ptr != NULL)
+      fprintf(stderr, "Error parsing stagePosition\n");
+      const char *error_ptr = cJSON_GetErrorPtr();
+      if (error_ptr != NULL)
         {
-            fprintf(stderr, "Error before: %s\n", error_ptr);
+	  fprintf(stderr, "Error before: %s\n", error_ptr);
         }
-        exit(EXIT_FAILURE);
+      exit(EXIT_FAILURE);
     }
-    const cJSON * j_channels = cJSON_GetObjectItemCaseSensitive(json,
-                                                                "channels");
-    /* TODO: Validate that this agrees with the information about the
-       number of channels that we got from somewhere else  */
-    int nchannels_validation = cJSON_GetArraySize(j_channels);
+  const cJSON * j_channels = cJSON_GetObjectItemCaseSensitive(json,
+							      "channels");
+  /* TODO: Validate that this agrees with the information about the
+     number of channels that we got from somewhere else  */
+  int nchannels_validation = cJSON_GetArraySize(j_channels);
 
-    if(nchannels != nchannels_validation)
+  if(nchannels != nchannels_validation)
     {
-        fprintf(stderr, "Inconsistent metadata. Are there %d or %d channels?",
-                nchannels, nchannels_validation);
-        exit(EXIT_FAILURE);
+      fprintf(stderr, "Inconsistent metadata. Are there %d or %d channels?",
+	      nchannels, nchannels_validation);
+      exit(EXIT_FAILURE);
     }
 
-    for(int cc = 0; cc<nchannels; cc++)
+  for(int cc = 0; cc<nchannels; cc++)
     {
-        const cJSON * j_chan = cJSON_GetArrayItem(j_channels, cc);
-        assert(j_channels != NULL);
-        const cJSON * j_position = cJSON_GetObjectItemCaseSensitive(j_chan,
-                                                                    "position");
-        assert(j_position != NULL);
-        const cJSON * j_stagePositionUm = cJSON_GetObjectItemCaseSensitive(j_position,
-                                                                           "stagePositionUm");
-        assert(j_stagePositionUm != NULL);
+      const cJSON * j_chan = cJSON_GetArrayItem(j_channels, cc);
+      assert(j_channels != NULL);
+      const cJSON * j_position = cJSON_GetObjectItemCaseSensitive(j_chan,
+								  "position");
+      assert(j_position != NULL);
+      const cJSON * j_stagePositionUm = cJSON_GetObjectItemCaseSensitive(j_position,
+									 "stagePositionUm");
+      assert(j_stagePositionUm != NULL);
 
-        const cJSON * j_x = cJSON_GetArrayItem(j_stagePositionUm, 0);
-        assert(j_x != NULL);
-        assert(cJSON_IsNumber(j_x));
+      const cJSON * j_x = cJSON_GetArrayItem(j_stagePositionUm, 0);
+      assert(j_x != NULL);
+      assert(cJSON_IsNumber(j_x));
 
-        const cJSON * j_y = cJSON_GetArrayItem(j_stagePositionUm, 1);
-        assert(j_y != NULL);
-        assert(cJSON_IsNumber(j_y));
+      const cJSON * j_y = cJSON_GetArrayItem(j_stagePositionUm, 1);
+      assert(j_y != NULL);
+      assert(cJSON_IsNumber(j_y));
 
-        const cJSON * j_z = cJSON_GetArrayItem(j_stagePositionUm, 2);
-        assert(j_z != NULL);
-        assert(cJSON_IsNumber(j_z));
-        pos[3*cc] = j_x->valuedouble;
-        pos[3*cc+1] = j_y->valuedouble;
-        pos[3*cc+2] = j_z->valuedouble;
+      const cJSON * j_z = cJSON_GetArrayItem(j_stagePositionUm, 2);
+      assert(j_z != NULL);
+      assert(cJSON_IsNumber(j_z));
+      pos[3*cc] = j_x->valuedouble;
+      pos[3*cc+1] = j_y->valuedouble;
+      pos[3*cc+2] = j_z->valuedouble;
 
-        //printf("%f, %f ,%f,\n", j_x->valuedouble, j_y->valuedouble, j_z->valuedouble);
+      //printf("%f, %f ,%f,\n", j_x->valuedouble, j_y->valuedouble, j_z->valuedouble);
     }
-    cJSON_Delete(json);
-    return;
+  cJSON_Delete(json);
+  return;
 }
 
 
 static void
 nd2info_print(const ntconf_t * conf, FILE * fid, const nd2info_t * info)
 {
-    if(conf->dry)
+  if(conf->dry)
     {
-        if(fid == NULL)
+      if(fid == NULL)
         {
-            return;
+	  return;
         }
     }
-    metadata_t * meta = info->meta_att;
-    int nFOV = info->nFOV;
-    fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
+  metadata_t * meta = info->meta_att;
+  int nFOV = info->nFOV;
+  fprintf(fid, "%d FOV in %d channels:\n", nFOV, meta->nchannels);
 
-    int max_chan_chars = 3;
-    for(int cc = 0; cc < meta->nchannels; cc++)
+  int max_chan_chars = 3;
+  for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        if(meta->channels[cc]->name != NULL)
+      if(meta->channels[cc]->name != NULL)
         {
-            int len = strlen(meta->channels[cc]->name);
-            len > max_chan_chars ? max_chan_chars = len : 0;
+	  int len = strlen(meta->channels[cc]->name);
+	  len > max_chan_chars ? max_chan_chars = len : 0;
         }
     }
 
-    for(int cc = 0; cc < meta->nchannels; cc++)
+  for(int cc = 0; cc < meta->nchannels; cc++)
     {
-        double lambda = meta->channels[cc]->emissionLambdaNm;
-        double RGB[3] = {0,0,0};
-        double l = lambda;
-        l > 650 ? l = 650 : 0;
-        l < 425 ? l = 425 : 0;
-        srgb_from_lambda(l, RGB);
+      double lambda = meta->channels[cc]->emissionLambdaNm;
+      double RGB[3] = {0,0,0};
+      double l = lambda;
+      l > 650 ? l = 650 : 0;
+      l < 425 ? l = 425 : 0;
+      srgb_from_lambda(l, RGB);
 
 
-        fprintf(fid, "   #%d '%*s', λ_em=%.1f",
-                cc+1,
-                max_chan_chars,
-                meta->channels[cc]->name,
-                meta->channels[cc]->emissionLambdaNm);
+      fprintf(fid, "   #%d '%*s', λ_em=%.1f",
+	      cc+1,
+	      max_chan_chars,
+	      meta->channels[cc]->name,
+	      meta->channels[cc]->emissionLambdaNm);
 
-        fprintf(fid, " #%02X%02X%02X ",
-                (int) round(255.0*RGB[0]),
-                (int) round(255.0*RGB[1]),
-                (int) round(255.0*RGB[2]));
-        show_color(fid, RGB, lambda);
-        fprintf(fid, "\n");
+      fprintf(fid, " #%02X%02X%02X ",
+	      (int) round(255.0*RGB[0]),
+	      (int) round(255.0*RGB[1]),
+	      (int) round(255.0*RGB[2]));
+      show_color(fid, RGB, lambda);
+      fprintf(fid, "\n");
 
     }
 
-    int cc = 0;
-    fprintf(fid, "Bits per pixel: %d, significant: %d\n",
-            info->file_att->bitsPerComponentInMemory,
-            info->file_att->bitsPerComponentSignificant);
-    fprintf(fid, "dx=%.1f nm, dy=%.1f nm, dz=%.1f nm\n",
-            meta->channels[cc]->dx_nm,
-            meta->channels[cc]->dy_nm,
-            meta->channels[cc]->dz_nm);
-    fprintf(fid, "NA=%.3f, ni=%.3f\n",
-            meta->channels[cc]->objectiveNumericalAperture,
-            meta->channels[cc]->immersionRefractiveIndex);
-    fprintf(fid, "Objective Name: %s\nObjective Magnification: %.1fX\n",
-            meta->channels[cc]->objectiveName,
-            meta->channels[cc]->objectiveMagnification);
-    fprintf(fid, "Volume size: %d x %d x %d\n",
-            meta->channels[cc]->M,
-            meta->channels[cc]->N,
-            meta->channels[cc]->P);
-    fprintf(fid, "Looping: %s\n", info->loopstring);
-    if(info->camera_name)
+  int cc = 0;
+  fprintf(fid, "Bits per pixel: %d, significant: %d\n",
+	  info->file_att->bitsPerComponentInMemory,
+	  info->file_att->bitsPerComponentSignificant);
+  fprintf(fid, "dx=%.1f nm, dy=%.1f nm, dz=%.1f nm\n",
+	  meta->channels[cc]->dx_nm,
+	  meta->channels[cc]->dy_nm,
+	  meta->channels[cc]->dz_nm);
+  fprintf(fid, "NA=%.3f, ni=%.3f\n",
+	  meta->channels[cc]->objectiveNumericalAperture,
+	  meta->channels[cc]->immersionRefractiveIndex);
+  fprintf(fid, "Objective Name: %s\nObjective Magnification: %.1fX\n",
+	  meta->channels[cc]->objectiveName,
+	  meta->channels[cc]->objectiveMagnification);
+  fprintf(fid, "Volume size: %d x %d x %d\n",
+	  meta->channels[cc]->M,
+	  meta->channels[cc]->N,
+	  meta->channels[cc]->P);
+  fprintf(fid, "Looping: %s\n", info->loopstring);
+  if(info->camera_name)
     {
-        fprintf(fid, "Camera: %s\n", info->camera_name);
+      fprintf(fid, "Camera: %s\n", info->camera_name);
     }
-    if(info->microscope_name)
+  if(info->microscope_name)
     {
-        fprintf(fid, "Microscope: %s\n", info->microscope_name);
+      fprintf(fid, "Microscope: %s\n", info->microscope_name);
     }
-    return;
+  return;
 }
 
 
 static void print_version(FILE * fid)
 {
-    fprintf(fid, "nd2tool v.%s.%s.%s",
-            ND2TOOL_VERSION_MAJOR,
-            ND2TOOL_VERSION_MINOR,
-            ND2TOOL_VERSION_PATCH);
-    #ifdef ND2TOOL_GIT_VERSION
-    fprintf(fid, " git:%s\n", ND2TOOL_GIT_VERSION);
-    #endif
-    fprintf(fid, "\n");
-    fprintf(fid, "TIFF: '%s'\n", TIFFGetVersion());
-    return;
+  fprintf(fid, "nd2tool v.%s.%s.%s",
+	  ND2TOOL_VERSION_MAJOR,
+	  ND2TOOL_VERSION_MINOR,
+	  ND2TOOL_VERSION_PATCH);
+#ifdef ND2TOOL_GIT_VERSION
+  fprintf(fid, " git:%s\n", ND2TOOL_GIT_VERSION);
+#endif
+  fprintf(fid, "\n");
+  fprintf(fid, "TIFF: '%s'\n", TIFFGetVersion());
+  return;
 }
 
 
 static void print_web(FILE * fid)
 {
-    fprintf(fid, "Web page: <https://www.github.com/elgw/nd2tool>\n");
-    return;
+  fprintf(fid, "Web page: <https://www.github.com/elgw/nd2tool>\n");
+  return;
 }
 
 
 static void show_version()
 {
-    print_version(stdout);
-    print_web(stdout);
-    return;
+  print_version(stdout);
+  print_web(stdout);
+  return;
 }
 
 
 static void show_help(char * name)
 {
-    ntconf_t * conf = ntconf_new();
+  ntconf_t * conf = ntconf_new();
 
-    printf("Usage: ");
-    printf("%s [--info] [--coords] [--help] file1.nd2 file2.nd2 ...\n",
-           name);
-    printf("Convert Nikon nd2 file(s) to tif file(s) or just show some metadata.\n");
-    printf("\n");
-    printf("Options:\n");
-    printf("  -i, --info \n\t Just show brief info about the file(s) and then quit.\n");
-    printf("  -v, --verbose l\n\t Set verbosity level l. Default: %d.\n",
-           conf->verbose);
-    printf("  -V, --version\n\t Show version info and quit.\n");
-    printf("  -h, --help\n\t Show this message and quit\n");
-    printf("  -o, --overwrite\n\t Overwrite existing tif files. Default: %d.\n",
-           conf->overwrite);
-    printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
-    printf("  -s, --shake\n\t Enable experimental shake detection\n");
-    printf("  --fov n\n\t Only extract Field Of View #n\n");
-    printf("  --slice '[a, b]'\n\t"
-           "Where range is a json array, for example [2, 10]\n\t"
-           "Only extract slices in the 1-indexed range [a, b]\n");
-    printf("  -C, --composite\n\t Don't split by channel\n");
-    printf("  --deconwolf\n\t"
-           "for each file, generate a script to run deconwolf\n");
-    printf("  --deconwolfx\n\t"
-           "like --deconwolf but will ask for some parameters interactively\n");
-    printf(" --deconwolf_dots\n\t"
-           "write a script for dot detection with `dw dots`\n");
-    printf("  --dry\n\t"
-           "Perform a dry run, i.e. do not write files or create folders\n");
-    printf("  --SpaceTx\n\t"
-           "Save one image per z-plane according to the SpaceTx convention.\n\t"
-           "<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>\n\t"
-           "<image_type> will be the name of the nd2file (without extension)\n\t"
-           "<round_label> will always be 0.\n\t");
-    printf("\n");
-    printf("Raw meta data extraction to stdout:\n");
-    printf("  --meta\n\t all metadata.\n");
-    printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
-    printf("  --meta-coord\n\t Lim_FileGetCoordInfo text.\n");
-    printf("  --meta-frame\n\t Lim_FileGetFrameMetadata JSON.\n");
-    printf("  --meta-text\n\t Lim_FileGetTextinfo text.\n");
-    printf("  --meta-exp\n\t Lim_FileGetExperiment JSON.\n");
-    printf("\n");
-    printf("See the man page for more information or the\n");
-    printf("web page <https://www.github.com/elgw/nd2tool>\n");
-    ntconf_free(conf);
-    return;
+  printf("Usage: ");
+  printf("%s [--info] [--coords] [--help] file1.nd2 file2.nd2 ...\n",
+	 name);
+  printf("Convert Nikon nd2 file(s) to tif file(s) or just show some metadata.\n");
+  printf("\n");
+  printf("Options:\n");
+  printf("  -i, --info \n\t Just show brief info about the file(s) and then quit.\n");
+  printf("  -v, --verbose l\n\t Set verbosity level l. Default: %d.\n",
+	 conf->verbose);
+  printf("  -V, --version\n\t Show version info and quit.\n");
+  printf("  -h, --help\n\t Show this message and quit\n");
+  printf("  -o, --overwrite\n\t Overwrite existing tif files. Default: %d.\n",
+	 conf->overwrite);
+  printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
+  printf("  -s, --shake\n\t Enable experimental shake detection\n");
+  printf("  --fov n\n\t Only extract Field Of View #n\n");
+  printf("  --slice '[a, b]'\n\t"
+	 "Where range is a json array, for example [2, 10]\n\t"
+	 "Only extract slices in the 1-indexed range [a, b]\n");
+  printf("  -C, --composite\n\t Don't split by channel\n");
+  printf("  --deconwolf\n\t"
+	 "for each file, generate a script to run deconwolf\n");
+  printf("  --deconwolfx\n\t"
+	 "like --deconwolf but will ask for some parameters interactively\n");
+  printf(" --deconwolf_dots\n\t"
+	 "write a script for dot detection with `dw dots`\n");
+  printf("  --dry\n\t"
+	 "Perform a dry run, i.e. do not write files or create folders\n");
+  printf("  --SpaceTx\n\t"
+	 "Save one image per z-plane according to the SpaceTx convention.\n\t"
+	 "<image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>\n\t"
+	 "<image_type> will be the name of the nd2file (without extension)\n\t"
+	 "<round_label> will always be 0.\n\t");
+  printf("\n");
+  printf("Raw meta data extraction to stdout:\n");
+  printf("  --meta\n\t all metadata.\n");
+  printf("  --meta-file\n\t Lim_FileGetMetadata JSON.\n");
+  printf("  --meta-coord\n\t Lim_FileGetCoordInfo text.\n");
+  printf("  --meta-frame\n\t Lim_FileGetFrameMetadata JSON.\n");
+  printf("  --meta-text\n\t Lim_FileGetTextinfo text.\n");
+  printf("  --meta-exp\n\t Lim_FileGetExperiment JSON.\n");
+  printf("\n");
+  printf("See the man page for more information or the\n");
+  printf("web page <https://www.github.com/elgw/nd2tool>\n");
+  ntconf_free(conf);
+  return;
 }
 
 
 static ntconf_t * ntconf_new(void)
 {
-    ntconf_t * conf = ckcalloc(1, sizeof(ntconf_t));
-    conf->verbose = 1;
-    conf->convert = 1;
-    conf->showinfo = 1;
-    conf->purpose = CONVERT_TO_TIF;
-    return conf;
+  ntconf_t * conf = ckcalloc(1, sizeof(ntconf_t));
+  conf->verbose = 1;
+  conf->convert = 1;
+  conf->showinfo = 1;
+  conf->purpose = CONVERT_TO_TIF;
+  return conf;
 }
 
 
 static void ntconf_free(ntconf_t * conf)
 {
-    if(conf != NULL)
+  if(conf != NULL)
     {
-        free(conf->fov_string);
-        free(conf->dwargs);
+      free(conf->fov_string);
+      free(conf->dwargs);
     }
-    free(conf);
+  free(conf);
 }
 
 static int parse_slice_range(const char * str, int * a, int *b)
 {
-    /* Parse a json formatted range from the string, for example
+  /* Parse a json formatted range from the string, for example
      [2, 10] sets a to 2 and b to 10
-    */
-    cJSON *j = cJSON_Parse(str);
-    if(j == NULL)
+  */
+  cJSON *j = cJSON_Parse(str);
+  if(j == NULL)
     {
-        return EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
-    if(cJSON_GetArraySize(j) != 2)
+  if(cJSON_GetArraySize(j) != 2)
     {
-        printf("Array has wrong size\n");
-        goto fail;
+      printf("Array has wrong size\n");
+      goto fail;
     }
 
-    cJSON * ja = cJSON_GetArrayItem(j, 0);
-    if (cJSON_IsNumber(ja))
+  cJSON * ja = cJSON_GetArrayItem(j, 0);
+  if (cJSON_IsNumber(ja))
     {
-        *a = ja->valueint;
+      *a = ja->valueint;
     } else {
-        goto fail;
-    }
+    goto fail;
+  }
 
-    cJSON * jb = cJSON_GetArrayItem(j, 1);
-    if (cJSON_IsNumber(jb))
+  cJSON * jb = cJSON_GetArrayItem(j, 1);
+  if (cJSON_IsNumber(jb))
     {
-        *b = jb->valueint;
+      *b = jb->valueint;
     } else {
-        goto fail;
-    }
+    goto fail;
+  }
 
-    cJSON_Delete(j);
-    return EXIT_SUCCESS;
+  cJSON_Delete(j);
+  return EXIT_SUCCESS;
 
  fail:
-    cJSON_Delete(j);
-    return EXIT_FAILURE;
+  cJSON_Delete(j);
+  return EXIT_FAILURE;
 }
 
 static int argparse(ntconf_t * conf, int argc, char ** argv)
 {
-    struct option longopts[] = {
-        { "coord",      no_argument, NULL, 'c'},
-        { "composite",  no_argument, NULL, 'C'},
-        { "dry",        no_argument, NULL, 'd'},
-        { "deconwolf",  no_argument, NULL, 'D'},
-        { "deconwolfx", no_argument, NULL, 'E'},
-        { "deconwolf_dots", no_argument, NULL, 'G'},
-        { "help",       no_argument, NULL, 'h'},
-        { "info",       no_argument, NULL, 'i'},
-        { "overwrite",  no_argument, NULL, 'o'},
-        { "slice",      required_argument, NULL, 'r'},
-        { "shake",      no_argument, NULL, 's'},
-        { "SpaceTx",    no_argument, NULL, 'S'},
-        { "test",       no_argument, NULL, 't'},
-        { "verbose",    required_argument, NULL, 'v'},
-        { "version",    no_argument, NULL, 'V'},
-        { "fov",        required_argument, NULL, 'F'},
-        { "meta",       no_argument, NULL, '1'},
-        { "meta-file",  no_argument, NULL, '2'},
-        { "meta-coord", no_argument, NULL, '3'},
-        { "meta-frame", no_argument, NULL, '4'},
-        { "meta-text",  no_argument, NULL, '5'},
-        { "meta-exp",   no_argument, NULL, '6'},
-        { NULL, 0, NULL, 0 }
-    };
-    int ch;
+  struct option longopts[] = {
+    { "coord",      no_argument, NULL, 'c'},
+    { "composite",  no_argument, NULL, 'C'},
+    { "dry",        no_argument, NULL, 'd'},
+    { "deconwolf",  no_argument, NULL, 'D'},
+    { "deconwolfx", no_argument, NULL, 'E'},
+    { "deconwolf_dots", no_argument, NULL, 'G'},
+    { "help",       no_argument, NULL, 'h'},
+    { "info",       no_argument, NULL, 'i'},
+    { "overwrite",  no_argument, NULL, 'o'},
+    { "slice",      required_argument, NULL, 'r'},
+    { "shake",      no_argument, NULL, 's'},
+    { "SpaceTx",    no_argument, NULL, 'S'},
+    { "test",       no_argument, NULL, 't'},
+    { "verbose",    required_argument, NULL, 'v'},
+    { "version",    no_argument, NULL, 'V'},
+    { "fov",        required_argument, NULL, 'F'},
+    { "meta",       no_argument, NULL, '1'},
+    { "meta-file",  no_argument, NULL, '2'},
+    { "meta-coord", no_argument, NULL, '3'},
+    { "meta-frame", no_argument, NULL, '4'},
+    { "meta-text",  no_argument, NULL, '5'},
+    { "meta-exp",   no_argument, NULL, '6'},
+    { NULL, 0, NULL, 0 }
+  };
+  int ch;
 
-    while((ch = getopt_long(argc, argv, "123456CDEFGSVcdhior:sv:t",
-                            longopts, NULL)) != -1)
+  while((ch = getopt_long(argc, argv, "123456CDEFGSVcdhior:sv:t",
+			  longopts, NULL)) != -1)
     {
-        switch(ch) {
-        case '1':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_file = 1;
-            conf->meta_coord = 1;
-            conf->meta_frame = 1;
-            conf->meta_text = 1;
-            conf->meta_exp = 1;
-            break;
-        case '2':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_file = 1;
-            break;
-        case '3':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_coord = 1;
-            break;
-        case '4':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_frame = 1;
-            break;
-        case '5':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_text = 1;
-            break;
-        case '6':
-            conf->purpose = SHOW_METADATA;
-            conf->meta_exp = 1;
-            break;
-        case 'c':
-            conf->showcoords = 1;
-            conf->shake = 1;
-            conf->verbose = 0;
-            break;
-        case 'C':
-            conf->composite = 1;
-            break;
-        case 'd':
-            conf->dry = 1;
-            break;
-        case 'D':
-            conf->deconwolf = 1;
-            break;
-        case 'E':
-            conf->deconwolf = 1;
-            conf->deconwolfx = 1;
-            break;
-        case 'F':
-            free(conf->fov_string);
-            conf->fov_string = strdup(optarg);
-            break;
-        case 'G':
-            conf->deconwolf_dots = 1;
-            break;
-        case 'h':
-            show_help(argv[0]);
-            exit(EXIT_SUCCESS);
-            break;
-        case 'o':
-            conf->overwrite = 1;
-            break;
-        case 'r':
-            int a, b;
-            if(parse_slice_range(optarg, &a, &b) == 0)
+      switch(ch) {
+      case '1':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_file = 1;
+	conf->meta_coord = 1;
+	conf->meta_frame = 1;
+	conf->meta_text = 1;
+	conf->meta_exp = 1;
+	break;
+      case '2':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_file = 1;
+	break;
+      case '3':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_coord = 1;
+	break;
+      case '4':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_frame = 1;
+	break;
+      case '5':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_text = 1;
+	break;
+      case '6':
+	conf->purpose = SHOW_METADATA;
+	conf->meta_exp = 1;
+	break;
+      case 'c':
+	conf->showcoords = 1;
+	conf->shake = 1;
+	conf->verbose = 0;
+	break;
+      case 'C':
+	conf->composite = 1;
+	break;
+      case 'd':
+	conf->dry = 1;
+	break;
+      case 'D':
+	conf->deconwolf = 1;
+	break;
+      case 'E':
+	conf->deconwolf = 1;
+	conf->deconwolfx = 1;
+	break;
+      case 'F':
+	free(conf->fov_string);
+	conf->fov_string = strdup(optarg);
+	break;
+      case 'G':
+	conf->deconwolf_dots = 1;
+	break;
+      case 'h':
+	show_help(argv[0]);
+	exit(EXIT_SUCCESS);
+	break;
+      case 'o':
+	conf->overwrite = 1;
+	break;
+      case 'r':
+	{
+	  int a, b;
+	  if(parse_slice_range(optarg, &a, &b) == 0)
             {
-                conf->use_range = 1;
-                conf->range_from = a;
-                conf->range_to = b;
+	      conf->use_range = 1;
+	      conf->range_from = a;
+	      conf->range_to = b;
             } else {
-                printf("Unable to parse range from %s\n", optarg);
-                printf("When using --slice make sure to quote the range, for example:\n"
-                       "nd2tool --slice '[2, 20]' ...\n");
-            }
+	    printf("Unable to parse range from %s\n", optarg);
+	    printf("When using --slice make sure to quote the range, for example:\n"
+		   "nd2tool --slice '[2, 20]' ...\n");
+	  }
+	}
             break;
         case 's':
             conf->shake = 1;
