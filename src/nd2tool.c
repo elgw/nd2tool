@@ -585,7 +585,8 @@ static void check_cmd_line(int argc, char ** argv)
 
 static void nd2info_set_outfolder(nd2info_t * info)
 {
-    free(info->outfolder);
+  //    free(info->outfolder);
+    assert(info->filename != NULL);
     info->outfolder = strdup(info->filename);
     char * outfolder = strdup(basename(info->outfolder));
     free(info->outfolder);
@@ -600,6 +601,7 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
 {
     nd2info_t * info = nd2info_new(conf);
     NOT_NULL(info);
+    assert(file != NULL);
     info->filename = strdup(file);
     NOT_NULL(info->filename);
 
