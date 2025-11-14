@@ -141,7 +141,9 @@ target_include_directories(nd2tool PRIVATE ${TIFF_INCLUDE_DIRS})
 #
 # cJSON
 #
-find_package(cjson REQUIRED)
+if(APPLE)
+  find_package(cjson REQUIRED)
+endif()
 target_link_libraries(nd2tool cjson)
 
 # Enable -flto (GCC) and similar if available, see
