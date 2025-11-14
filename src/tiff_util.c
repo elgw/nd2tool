@@ -44,7 +44,8 @@ tiff_writer_t * tiff_writer_init(const char * fName,
     char formatString[4] = "w";
     if(M*N*P*sizeof(uint16_t) >= pow(2, 32))
     {
-        sprintf(formatString, "w8\n");
+        snprintf(formatString, 4,
+                 "w8\n");
         // fprintf(stdout, "tim_tiff: File is > 2 GB, using BigTIFF format\n");
     }
 
@@ -161,10 +162,11 @@ void ttags_set_pixelsize_nm(ttags * T, double xres, double yres, double zres)
     {
         free(T->imagedescription);
     }
-    T->imagedescription = calloc(1024, 1);
+    size_t slen = 1024;
+    T->imagedescription = calloc(slen, 1);
     NOT_NULL(T->imagedescription);
 
-    sprintf(T->imagedescription,
+    snprintf(T->imagedescription, slen,
             "ImageJ=1.52r\nimages=%" PRId64 "\nslices=%" PRId64 "\nunit=nm\nspacing=%.1f\nloop=false.",
             T->P, T->P, T->zresolution);
 }
@@ -195,9 +197,11 @@ void ttags_set_software(ttags * T, char * sw)
     {
         free(T->software);
     }
-    T->software = calloc(strlen(sw)+2, 1);
+    size_t slen = strlen(sw)+2;
+    T->software = calloc(slen, 1);
     NOT_NULL(T->software);
-    sprintf(T->software, "%s", sw);
+    snprintf(T->software, slen,
+             "%s", sw);
 }
 
 void ttags_set(TIFF * tfile, ttags * T)
@@ -219,10 +223,11 @@ void ttags_set(TIFF * tfile, ttags * T)
         {
             free(T->imagedescription);
         }
-        T->imagedescription = calloc(1024, 1);
+        size_t slen = 1024;
+        T->imagedescription = calloc(slen, 1);
         NOT_NULL(T->imagedescription)
 
-        sprintf(T->imagedescription,
+            snprintf(T->imagedescription, slen,
                 "ImageJ=1.52r\n"
                 "images=%" PRId64 "\n"
                 "slices=%" PRId64 "\n"
