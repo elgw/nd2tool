@@ -1090,8 +1090,8 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
         size_t slen = 1024;
         char * sw_string = ckcalloc(slen, 1);
         snprintf(sw_string, slen,
-                "github.com/elgw/nd2tool source image: %s",
-                info->filename);
+                 "github.com/elgw/nd2tool source image: %s",
+                 info->filename);
         ttags_set_software(tags , sw_string);
         free(sw_string);
     }
@@ -1751,7 +1751,7 @@ static int parse_json_range(const char * str, int * a, int *b)
     cJSON_Delete(j);
     return EXIT_SUCCESS;
 
- fail:
+fail:
     cJSON_Delete(j);
     return EXIT_FAILURE;
 }
@@ -1849,7 +1849,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
                        "nd2tool --slice '[2, 20]' ...\n");
             }
         }
-            break;
+        break;
         case 'G':
             conf->deconwolf_dots = 1;
             break;
@@ -1861,19 +1861,18 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->overwrite = 1;
             break;
         case 'r':
+        {
+            int a, b;
+            if(parse_json_range(optarg, &a, &b) == 0)
             {
-                int a, b;
-                if(parse_slice_range(optarg, &a, &b) == 0)
-                {
-                    conf->use_range = 1;
-                    conf->range_from = a;
-                    conf->range_to = b;
-                } else {
-                    printf("Unable to parse range from %s\n", optarg);
-                    printf("When using --slice make sure to quote the range, for example:\n"
-                           "nd2tool --slice '[2, 20]' ...\n");
-                }
-            }
+                conf->use_range = 1;
+                conf->range_from = a;
+                conf->range_to = b;
+            } else {
+                printf("Unable to parse range from %s\n", optarg);
+                printf("When using --slice make sure to quote the range, for example:\n"
+                       "nd2tool --slice '[2, 20]' ...\n");
+            }            
         }
             break;
         case 's':
