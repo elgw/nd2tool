@@ -31,7 +31,10 @@ typedef struct{
     int save_individual_planes;
 
     nt_purpose purpose;
-    char * fov_string; /* Specifying what fov to use */
+    int use_fov_range;
+    int fov_range_from;
+    int fov_range_to;
+    
     int meta_file;
     int meta_coord;
     int meta_frame;
@@ -922,9 +925,13 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
 
     for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
-        if(conf->fov_string != NULL)
+        if(conf->use_fov_range)
         {
-            if(atoi(conf->fov_string) != (ff+1))
+            if( (ff+1) < conf->fov_range_from)
+            {
+                continue;
+            }
+            if( (ff+1) > conf->fov_range_to)
             {
                 continue;
             }
@@ -1090,14 +1097,19 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
 
     for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
-        if(conf->fov_string != NULL)
+
+        if(conf->use_fov_range)
         {
-            if(atoi(conf->fov_string) != (ff+1))
+            if( (ff+1) < conf->fov_range_from)
+            {
+                continue;
+            }
+            if( (ff+1) > conf->fov_range_to)
             {
                 continue;
             }
         }
-
+        
         for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
         {
             for(i64 kk = 0; kk<P; kk++) /* For each plane */
@@ -1253,9 +1265,13 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
 
     for(i64 ff = 0; ff<info->nFOV; ff++) /* For each FOV */
     {
-        if(conf->fov_string != NULL)
+        if(conf->use_fov_range)
         {
-            if(atoi(conf->fov_string) != (ff+1))
+            if( (ff+1) < conf->fov_range_from)
+            {
+                continue;
+            }
+            if( (ff+1) > conf->fov_range_to)
             {
                 continue;
             }
@@ -1612,7 +1628,7 @@ static void show_help(char * name)
            conf->overwrite);
     printf("  -c, --coord\n\t Show coordinates in csv format for all z-planes\n");
     printf("  -s, --shake\n\t Enable experimental shake detection\n");
-    printf("  --fov n\n\t Only extract Field Of View #n\n");
+    printf("  --fov '[a, b]'\n\t Only extract Field Of View in range [a, b]\n");
     printf("  --slice '[a, b]'\n\t"
            "Where range is a json array, for example [2, 10]\n\t"
            "Only extract slices in the 1-indexed range [a, b]\n");
@@ -1661,13 +1677,12 @@ static void ntconf_free(ntconf_t * conf)
 {
     if(conf != NULL)
     {
-        free(conf->fov_string);
         free(conf->dwargs);
     }
     free(conf);
 }
 
-static int parse_slice_range(const char * str, int * a, int *b)
+static int parse_json_range(const char * str, int * a, int *b)
 {
     /* Parse a json formatted range from the string, for example
      [2, 10] sets a to 2 and b to 10
@@ -1787,8 +1802,19 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->deconwolfx = 1;
             break;
         case 'F':
-            free(conf->fov_string);
-            conf->fov_string = strdup(optarg);
+        {
+            int a, b;
+            if(parse_json_range(optarg, &a, &b) == 0)
+            {
+                conf->use_fov_range = 1;
+                conf->fov_range_from = a;
+                conf->fov_range_to = b;
+            } else {
+                printf("Unable to parse range from %s\n", optarg);
+                printf("When using --fov make sure to quote the range, for example:\n"
+                       "nd2tool --slice '[2, 20]' ...\n");
+            }
+        }
             break;
         case 'G':
             conf->deconwolf_dots = 1;
@@ -1801,8 +1827,9 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->overwrite = 1;
             break;
         case 'r':
+        {
             int a, b;
-            if(parse_slice_range(optarg, &a, &b) == 0)
+            if(parse_json_range(optarg, &a, &b) == 0)
             {
                 conf->use_range = 1;
                 conf->range_from = a;
@@ -1812,6 +1839,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
                 printf("When using --slice make sure to quote the range, for example:\n"
                        "nd2tool --slice '[2, 20]' ...\n");
             }
+        }
             break;
         case 's':
             conf->shake = 1;
