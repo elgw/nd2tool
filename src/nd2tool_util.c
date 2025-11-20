@@ -19,7 +19,7 @@ static void * ckcalloc(size_t nmemb, size_t size)
 
 
 /** @breif Replace '\\r\\n' by '   \n'
-*/
+ */
 void filter_textinfo(char * s)
 {
     size_t n = strlen(s);
@@ -70,7 +70,7 @@ void remove_file_ext(char * str)
 /** @brief How much memory was allocated?
  *
  * Get the peak memory used by the process from /proc/<PID>/status
-*/
+ */
 #ifdef __APPLE__
 size_t get_peakMemoryKB(void)
 {
@@ -83,9 +83,11 @@ size_t get_peakMemoryKB(void)
 #ifndef __APPLE__
 size_t get_peakMemoryKB(void)
 {
-    char * statfile = ckcalloc(100, sizeof(char));
+    size_t slen = 100;
+    char * statfile = ckcalloc(slen, sizeof(char));
 
-    sprintf(statfile, "/proc/%d/status", getpid());
+    snprintf(statfile, slen,
+             "/proc/%d/status", getpid());
     FILE * sf = fopen(statfile, "r");
     if(sf == NULL)
     {
@@ -138,7 +140,7 @@ size_t get_peakMemoryKB(void)
 #endif
 
 /** @brief Check if file exists
-*/
+ */
 int isfile(char * filename)
 {
     FILE *file = fopen(filename, "r");
@@ -205,7 +207,7 @@ void show_color(FILE * fid, const double * RGB, double lambda)
  * Example:
  * "file.tif", "dw_" -> "dw_file.tif"
  * "/data/file.tif", "dw_" -> "/data/dw_file.tif"
-*/
+ */
 char *
 prefix_filename(const char * filename, const char * prefix)
 {
@@ -226,7 +228,7 @@ prefix_filename(const char * filename, const char * prefix)
             filename, last_filesep);
 
     strcat(px_name,
-            prefix);
+           prefix);
 
     strncat(px_name,
             filename+last_filesep,

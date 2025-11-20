@@ -7,11 +7,21 @@ LDFLAGS+=-flto \
 -lcjson \
 -llimfile-shared \
 -lnd2readsdk-shared \
--lm \
--Llib \
--l:libtiff.so.5
+-lm 
+
+# -l:libtiff.so.5
 
 CFLAGS=-Wall -Wextra -std=gnu99
+
+# Linux
+# -Llib 
+
+# APPLE
+LDFLAGS+=-Llib/nd2readsdk-shared-1.7.6.0-Macos-armv8/
+CFLAGS+=-I/opt/homebrew/include/
+LDFLAGS+=-L/opt/homebrew/lib/
+
+LDFLAGS+=-ltiff
 
 DEBUG?=0
 
@@ -44,9 +54,6 @@ src/tiff_util.c \
 src/json_util.c \
 src/srgb_from_lambda.c \
 src/nd2tool_util.c
-
-shared=lib/liblimfile-shared.so \
-lib/libnd2readsdk-shared.so
 
 inc=-Iinclude/
 

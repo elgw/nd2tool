@@ -44,7 +44,8 @@ tiff_writer_t * tiff_writer_init(const char * fName,
     char formatString[4] = "w";
     if(M*N*P*sizeof(uint16_t) >= pow(2, 32))
     {
-        sprintf(formatString, "w8\n");
+        snprintf(formatString, 4,
+                 "w8\n");
         // fprintf(stdout, "tim_tiff: File is > 2 GB, using BigTIFF format\n");
     }
 
@@ -60,8 +61,8 @@ int tiff_writer_write(tiff_writer_t * tw, uint16_t * slice)
     if(tw->dd == tw->P)
     {
         fprintf(stderr, "Error: Trying to write too many slices\n"
-                "%ld slices were expected and %ld has already been written\n",
-                tw->P, tw->dd);
+                "%d slices were expected and %d has already been written\n",
+                (int) tw->P, (int) tw->dd);
         fprintf(stderr, "In %s, line %d\n", __FILE__, __LINE__);
         exit(EXIT_FAILURE);
     }
@@ -161,11 +162,12 @@ void ttags_set_pixelsize_nm(ttags * T, double xres, double yres, double zres)
     {
         free(T->imagedescription);
     }
-    T->imagedescription = calloc(1024, 1);
+    size_t slen = 1024;
+    T->imagedescription = calloc(slen, 1);
     NOT_NULL(T->imagedescription);
 
-    sprintf(T->imagedescription,
-            "ImageJ=1.52r\nimages=%ld\nslices=%ld\nunit=nm\nspacing=%.1f\nloop=false.",
+    snprintf(T->imagedescription, slen,
+            "ImageJ=1.52r\nimages=%" PRId64 "\nslices=%" PRId64 "\nunit=nm\nspacing=%.1f\nloop=false.",
             T->P, T->P, T->zresolution);
 }
 
@@ -195,9 +197,11 @@ void ttags_set_software(ttags * T, char * sw)
     {
         free(T->software);
     }
-    T->software = calloc(strlen(sw)+2, 1);
+    size_t slen = strlen(sw)+2;
+    T->software = calloc(slen, 1);
     NOT_NULL(T->software);
-    sprintf(T->software, "%s", sw);
+    snprintf(T->software, slen,
+             "%s", sw);
 }
 
 void ttags_set(TIFF * tfile, ttags * T)
@@ -219,13 +223,14 @@ void ttags_set(TIFF * tfile, ttags * T)
         {
             free(T->imagedescription);
         }
-        T->imagedescription = calloc(1024, 1);
+        size_t slen = 1024;
+        T->imagedescription = calloc(slen, 1);
         NOT_NULL(T->imagedescription)
 
-        sprintf(T->imagedescription,
+            snprintf(T->imagedescription, slen,
                 "ImageJ=1.52r\n"
-                "images=%ld\n"
-                "slices=%ld\n"
+                "images=%" PRId64 "\n"
+                "slices=%" PRId64 "\n"
                 "unit=nm\n"
                 "spacing=%.1f\n"
                 "loop=false\n"

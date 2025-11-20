@@ -274,7 +274,7 @@ char * cli_get_string(const char * prompt, const char * standard)
             return line;
         }
     }
-// use provided line after stripping
+    // use provided line after stripping
     if(line[strlen(line)-1] == '\n')
     {
         line[strlen(line)-1] = '\0';
@@ -588,7 +588,8 @@ static void check_cmd_line(int argc, char ** argv)
 
 static void nd2info_set_outfolder(nd2info_t * info)
 {
-    free(info->outfolder);
+  //    free(info->outfolder);
+    assert(info->filename != NULL);
     info->outfolder = strdup(info->filename);
     char * outfolder = strdup(basename(info->outfolder));
     free(info->outfolder);
@@ -603,22 +604,26 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
 {
     nd2info_t * info = nd2info_new(conf);
     NOT_NULL(info);
+    assert(file != NULL);
     info->filename = strdup(file);
     NOT_NULL(info->filename);
 
     struct stat stats;
     if(stat(info->filename, &stats) != 0)
     {
-        info->error = ckcalloc(strlen(file) + 128, 1);
-        sprintf(info->error, "Can't open %s\n", file);
+        size_t slen = strlen(file) + 128;
+        info->error = ckcalloc(slen, 1);
+        snprintf(info->error, slen, "Can't open %s\n", file);
         return info;
     }
 
     void * nd2 = Lim_FileOpenForReadUtf8(file);
     if(nd2 == NULL)
     {
-        info->error = ckcalloc(strlen(file) + 128, 1);
-        sprintf(info->error, "%s is not a valid nd2 file\n", file);
+        size_t slen = strlen(file) + 128;
+        info->error = ckcalloc(slen, 1);
+        snprintf(info->error, slen,
+                 "%s is not a valid nd2 file\n", file);
         return info;
     }
 
@@ -632,8 +637,10 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
 
     if(csize < 1)
     {
-        info->error = ckcalloc(strlen(file) + 128, 1);
-        sprintf(info->error, "Error: Can't find coordinates in %s\n", file);
+        size_t slen = strlen(file) + 128;
+        info->error = ckcalloc(slen, 1);
+        snprintf(info->error, slen,
+                 "Error: Can't find coordinates in %s\n", file);
         Lim_FileClose(nd2);
         return info;
     }
@@ -685,8 +692,10 @@ static nd2info_t * nd2info(ntconf_t * conf, const char * file)
 
     if(nPlanes < 1)
     {
-        info->error = ckcalloc(strlen(file) + 128, 1);
-        sprintf(info->error, "Error: Can't find any image planes %s\n", file);
+        size_t slen = strlen(file) + 128;
+        info->error = ckcalloc(slen, 1);
+        snprintf(info->error, slen,
+                 "Error: Can't find any image planes %s\n", file);
         Lim_FileClose(nd2);
         return info;
     }
@@ -894,9 +903,11 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
     /* Prepare metadata for the tiff files */
     ttags * tags = ttags_new();
     {
-        char * sw_string = ckcalloc(1024, 1);
-        sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
-                info->filename);
+        size_t slen = 1024;
+        char * sw_string = ckcalloc(slen, 1);
+        snprintf(sw_string, slen,
+                 "github.com/elgw/nd2tool source image: %s",
+                 info->filename);
         ttags_set_software(tags , sw_string);
         free(sw_string);
     }
@@ -940,10 +951,18 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
         for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
         {
             /* Write out to disk */
-            char * outname = ckcalloc(1024, 1);
-            sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
-                    info->meta_att->channels[cc]->name, ff+1);
 
+            size_t slen = 1024;
+            char * outname = ckcalloc(slen, 1);
+            snprintf(outname, slen,
+                     "%s/%s_%03" PRId64 ".tif", info->outfolder,
+                     info->meta_att->channels[cc]->name, ff+1);
+
+	    if(conf->verbose > 1)
+            {
+		printf("outfolder: %s\n", info->outfolder);
+		printf("channel name: %s\n", info->meta_att->channels[cc]->name);
+            }
             printf("%s ", outname);
             nd2info_log(info, "%s ", outname);
 
@@ -974,9 +993,11 @@ static void nd2_to_tiff_splitC(void * nd2, ntconf_t * conf, nd2info_t * info)
             }
 
             /* Create temporary file */
-            char * outname_tmp = ckcalloc(strlen(outname) + 16, 1);
+            slen = strlen(outname) + 16;
+            char * outname_tmp = ckcalloc(slen, 1);
 
-            sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+            snprintf(outname_tmp, slen,
+                     "%s_tmp_XXXXXX", outname);
             int tfid = 0;
             if((tfid = mkstemp(outname_tmp)) == -1)
             {
@@ -1066,8 +1087,10 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
     /* Prepare metadata for the tiff files */
     ttags * tags = ttags_new();
     {
-        char * sw_string = ckcalloc(1024, 1);
-        sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
+        size_t slen = 1024;
+        char * sw_string = ckcalloc(slen, 1);
+        snprintf(sw_string, slen,
+                "github.com/elgw/nd2tool source image: %s",
                 info->filename);
         ttags_set_software(tags , sw_string);
         free(sw_string);
@@ -1116,18 +1139,20 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
             {
 
                 /* Write out to disk */
-                char * outname = ckcalloc(1024, 1);
+                size_t slen = 1024;
+                char * outname = ckcalloc(slen, 1);
                 /* SpaceTx
                  * <image_type>-f<fov_id>-r<round_label>-c<ch_label>-z<zplane_label>.
                  * Example: nuclei-f0-r2-c3-z33.tiff
                  */
-                sprintf(outname, "%s/%s_f%ld-r%d-c%ld-z%lu.tif",
-                        info->outfolder,
-                        info->outfolder, /* <image_type> */
-                        ff, /* <fov_id> */
-                        0, /* <round_label> */
-                        cc, /* <ch_label> */
-                        kk); /* <zplane_label> */
+                snprintf(outname, slen,
+                         "%s/%s_f%" PRId64 "-r%d-c%" PRIu64 "-z%" PRIu64 ".tif",
+                         info->outfolder,
+                         info->outfolder, /* <image_type> */
+                         ff, /* <fov_id> */
+                         0, /* <round_label> */
+                         cc, /* <ch_label> */
+                         kk); /* <zplane_label> */
 
                 printf("%s ", outname);
                 nd2info_log(info, "%s ", outname);
@@ -1159,9 +1184,11 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
                 }
 
                 /* Create temporary file */
-                char * outname_tmp = ckcalloc(strlen(outname) + 16, 1);
+                slen = strlen(outname) + 32;
+                char * outname_tmp = ckcalloc(slen, 1);
 
-                sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+                snprintf(outname_tmp, slen,
+                         "%s_tmp_XXXXXX", outname);
                 int tfid = 0;
                 if((tfid = mkstemp(outname_tmp)) == -1)
                 {
@@ -1229,9 +1256,11 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
     /* Prepare metadata for the tiff files */
     ttags * tags = ttags_new();
     {
-        char * sw_string = ckcalloc(1024, 1);
-        sprintf(sw_string, "github.com/elgw/nd2tool source image: %s",
-                info->filename);
+        size_t slen = 1024;
+        char * sw_string = ckcalloc(slen, 1);
+        snprintf(sw_string, slen,
+                 "github.com/elgw/nd2tool source image: %s",
+                 info->filename);
         ttags_set_software(tags , sw_string);
         free(sw_string);
     }
@@ -1278,9 +1307,11 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
         }
 
         /* Write out to disk */
-        char * outname = ckcalloc(1024, 1);
-        sprintf(outname, "%s/%s_%03ld.tif", info->outfolder,
-                "composite", ff+1);
+        size_t slen = 1024;
+        char * outname = ckcalloc(slen, 1);
+        snprintf(outname, slen,
+                 "%s/%s_%03" PRId64 ".tif", info->outfolder,
+                 "composite", ff+1);
 
         printf("%s ", outname);
         nd2info_log(info, "%s ", outname);
@@ -1300,8 +1331,10 @@ nd2_to_tiff_composite(void * nd2, ntconf_t * conf, nd2info_t * info)
         }
 
         /* Create temporary file */
-        char * outname_tmp = ckcalloc(strlen(outname) + 16, 1);
-        sprintf(outname_tmp, "%s_tmp_XXXXXX", outname);
+        slen = strlen(outname) + 16;
+        char * outname_tmp = ckcalloc(slen, 1);
+        snprintf(outname_tmp, slen,
+                 "%s_tmp_XXXXXX", outname);
         int tfid = 0;
         if((tfid = mkstemp(outname_tmp)) == -1)
         {
@@ -1396,10 +1429,11 @@ nd2_to_tiff(ntconf_t * conf, nd2info_t * info)
                 info->file_att->bitsPerComponentInMemory);
         return EXIT_FAILURE;
     }
-
-    info->logfile = ckcalloc(strlen(info->outfolder) + 128, 1);
-    sprintf(info->logfile, "%s/nd2tool.log.txt",
-            info->outfolder);
+    size_t slen = strlen(info->outfolder) + 128;
+    info->logfile = ckcalloc(slen, 1);
+    snprintf(info->logfile, slen,
+             "%s/nd2tool.log.txt",
+             info->outfolder);
 
     if(conf->verbose > 1)
     {
@@ -1585,9 +1619,9 @@ static void print_version(FILE * fid)
             ND2TOOL_VERSION_MAJOR,
             ND2TOOL_VERSION_MINOR,
             ND2TOOL_VERSION_PATCH);
-    #ifdef ND2TOOL_GIT_VERSION
+#ifdef ND2TOOL_GIT_VERSION
     fprintf(fid, " git:%s\n", ND2TOOL_GIT_VERSION);
-    #endif
+#endif
     fprintf(fid, "\n");
     fprintf(fid, "TIFF: '%s'\n", TIFFGetVersion());
     return;
@@ -1685,7 +1719,7 @@ static void ntconf_free(ntconf_t * conf)
 static int parse_json_range(const char * str, int * a, int *b)
 {
     /* Parse a json formatted range from the string, for example
-     [2, 10] sets a to 2 and b to 10
+       [2, 10] sets a to 2 and b to 10
     */
     cJSON *j = cJSON_Parse(str);
     if(j == NULL)
@@ -1827,17 +1861,18 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
             conf->overwrite = 1;
             break;
         case 'r':
-        {
-            int a, b;
-            if(parse_json_range(optarg, &a, &b) == 0)
             {
-                conf->use_range = 1;
-                conf->range_from = a;
-                conf->range_to = b;
-            } else {
-                printf("Unable to parse range from %s\n", optarg);
-                printf("When using --slice make sure to quote the range, for example:\n"
-                       "nd2tool --slice '[2, 20]' ...\n");
+                int a, b;
+                if(parse_slice_range(optarg, &a, &b) == 0)
+                {
+                    conf->use_range = 1;
+                    conf->range_from = a;
+                    conf->range_to = b;
+                } else {
+                    printf("Unable to parse range from %s\n", optarg);
+                    printf("When using --slice make sure to quote the range, for example:\n"
+                           "nd2tool --slice '[2, 20]' ...\n");
+                }
             }
         }
             break;
@@ -2174,9 +2209,11 @@ nd2info_show_deconwolf(ntconf_t * conf, const nd2info_t * info, FILE * fid)
                 continue;
             }
             /* Write out to disk */
-            char * outname = ckcalloc(1024, 1);
-            sprintf(outname, "%s/%s_%03d.tif", info->outfolder,
-                    info->meta_att->channels[cc]->name, ff+1);
+            size_t slen = 1024;
+            char * outname = ckcalloc(slen, 1);
+            snprintf(outname, slen,
+                     "%s/%s_%03d.tif", info->outfolder,
+                     info->meta_att->channels[cc]->name, ff+1);
 
             fprintf(fid, "dw ${xargs} --iter $iter_%s '%s' '%s/PSF_%s.tif'\n",
                     meta->channels[cc]->name,
@@ -2226,8 +2263,10 @@ nd2info_show_deconwolf_dots(const ntconf_t * conf,
         for(int cc = 0; cc < meta->nchannels; cc++)
         {
             /* Write out to disk */
-            char * outname = ckcalloc(1024, 1);
-            sprintf(outname, "%s/${prefix}%s_%03d.tif", info->outfolder,
+            size_t slen = 1024;
+            char * outname = ckcalloc(slen, 1);
+            snprintf(outname, slen,
+                     "%s/${prefix}%s_%03d.tif", info->outfolder,
                     info->meta_att->channels[cc]->name, ff+1);
             fprintf(fid, "if [[ $use_%s -eq 1 ]]\n", info->meta_att->channels[cc]->name);
 

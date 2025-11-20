@@ -10,7 +10,7 @@
 # Please note that this will remove also the libraries that might be
 # used by other programs.
 
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.20)
 
 project(nd2tool
   DESCRIPTION "convert Nikon nd2 files to tif"
@@ -34,6 +34,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "System: ${CMAKE_SYSTEM_NAME}")
 
 #
 # Add source files
@@ -50,7 +51,6 @@ add_executable(nd2tool
 # Add headers
 #
 target_include_directories(nd2tool PRIVATE include/)
-
 
 find_package(Git)
 
@@ -70,6 +70,21 @@ target_compile_definitions(nd2tool PUBLIC "ND2TOOL_GIT_VERSION=\"${ND2TOOL_GIT_V
 #
 # Add Nikon's library
 #
+if (UNIX)
+  if (APPLE)
+    message(STATUS "Linking against .dylib")
+    #target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.dylib")
+
+    make_directory(lib)
+    add_custom_command(TARGET nd2tool POST_BUILD        # Adds a post-build event to MyTest
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different  # which executes "cmake - E copy_if_different..."
+  "${PROJECT_SOURCE_DIR}/lib/nd2readsdk-shared-1.7.6.0-Macos-armv8/*.dylib"      # <--this is in-file
+  "$<TARGET_FILE_DIR:nd2tool>/lib")                 # <--this is out-file path
+
+target_link_libraries(nd2tool "libnd2readsdk-shared.dylib")
+
+else()
+message(STATUS "Linking against so files")
 target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/liblimfile-shared.so")
 target_link_libraries(nd2tool "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.so")
 # Copy it to the build dir upon compilation
@@ -77,6 +92,10 @@ add_custom_command(TARGET nd2tool POST_BUILD        # Adds a post-build event to
   COMMAND ${CMAKE_COMMAND} -E copy_if_different  # which executes "cmake - E copy_if_different..."
   "${PROJECT_SOURCE_DIR}/lib/*.so"      # <--this is in-file
   $<TARGET_FILE_DIR:nd2tool>)                 # <--this is out-file path
+endif ()
+endif ()
+
+
 
 #
 # Link time optimization
@@ -114,6 +133,7 @@ endif()
 #
 
 find_library(MATH_LIBRARY m)
+
 if(MATH_LIBRARY)
   target_link_libraries(nd2tool ${MATH_LIBRARY})
 endif()
@@ -121,7 +141,11 @@ endif()
 #
 # TIFF
 #
-target_link_libraries(nd2tool tiff)
+find_package(TIFF REQUIRED)
+target_include_directories(nd2tool PRIVATE ${TIFF_INCLUDE_DIRS})
+target_link_libraries(nd2tool ${TIFF_LIBRARIES})
+
+
 # On Ubuntu 24, first get libtiff.so.5 into the library
 # path, then use this line instead:
 #target_link_libraries(nd2tool -l:libtiff.so.5)
@@ -129,6 +153,13 @@ target_link_libraries(nd2tool tiff)
 #
 # cJSON
 #
+
+# Not sure if this works on macos because of a more recent version
+# of cmake or because the homebrew package contains some extra files
+if(APPLE)
+  find_package(cjson REQUIRED)
+endif()
+
 target_link_libraries(nd2tool cjson)
 
 # Enable -flto (GCC) and similar if available, see
@@ -143,10 +174,20 @@ include(GNUInstallDirs)
 install(TARGETS nd2tool)
 install(FILES "${CMAKE_SOURCE_DIR}/doc/nd2tool.1"
   DESTINATION "${CMAKE_INSTALL_MANDIR}/man1/" )
+
+if (UNIX)
+  if (APPLE)
+    install(FILES
+      "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.dylib"
+      "${CMAKE_SOURCE_DIR}/lib/liblimfile-shared.dylib"
+  TYPE LIB )
+    else()
 install(FILES
   "${CMAKE_SOURCE_DIR}/lib/liblimfile-shared.so"
   "${CMAKE_SOURCE_DIR}/lib/libnd2readsdk-shared.so"
   TYPE LIB )
+endif()
+endif()
 
 # https://cmake.org/cmake/help/book/mastering-cmake/chapter/Packaging%20With%20CPack.html
 SET(CPACK_GENERATOR "DEB")
