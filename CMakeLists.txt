@@ -47,6 +47,9 @@ add_executable(nd2tool
   src/srgb_from_lambda.c
   src/nd2tool_util.c)
 
+add_executable(nd2tool_recover
+  src/recover_nd2.c)
+
 #
 # Add headers
 #
@@ -171,7 +174,7 @@ if(result)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS nd2tool)
+install(TARGETS nd2tool nd2tool_recover)
 install(FILES "${CMAKE_SOURCE_DIR}/doc/nd2tool.1"
   DESTINATION "${CMAKE_INSTALL_MANDIR}/man1/" )
 

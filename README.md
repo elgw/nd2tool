@@ -72,8 +72,8 @@ FOV, Channel, Z, X_um, Y_um, Z_um
 ...
 ```
 
-### Generation of deconvolution script
-nd2tool can generate scripts to use with
+### Generation of deconvolution scripts
+nd2tool can generate scripts that deconvolve all images in the nd2 file with
 [deconwolf](https://www.github.com/elgw/deconwolf/). Either it creates
 a script that has to be edited manually **--deconwolf** or it asks for
 the key parameters interactively with **--deconwolfx** as in the
@@ -88,7 +88,7 @@ dapi (default=50)
 A647 (default=50)
 > 75
 Enter any extra arguments to deconwolf
-> --gpu
+> --gpu --tilesize 1024
 ```
 
 For this file the generated file was:
@@ -103,9 +103,65 @@ dw_bw --lambda 385.000000 --resxy 108.333333 --resz 600.000000 --NA 1.400000 --n
 dw_bw --lambda 710.000000 --resxy 108.333333 --resz 600.000000 --NA 1.400000 --ni 1.515000 'iMS441_20191016_001/PSF_A647.tif'
 iter_dapi=50
 iter_A647=75
-xargs="--gpu"
+xargs="--gpu --tilesize 1024"
 dw "$xargs" --iter $iter_dapi 'iMS441_20191016_001/dapi_001.tif' 'iMS441_20191016_001/PSF_dapi.tif'
 dw "$xargs" --iter $iter_A647 'iMS441_20191016_001/A647_001.tif' 'iMS441_20191016_001/PSF_A647.tif'
+```
+
+> [!WARNING]
+> The emission wave lengths are typically wrong and might need manual curation.
+
+## Generation of spot detection scripts
+nd2tool can generate scripts for spot detection that will use
+[deconwolf](https://www.github.com/elgw/deconwolf/)
+
+Example usage:
+
+``` shell
+$ nd2tool --deconwolf_dots iRB0156_20200217_002.nd2
+Writing to deconwolf_dots_iRB0156_20200217_002.nd2.sh
+Please set xargs and prefix before running the script
+```
+
+As the note from the program says, please check the script before running it.
+
+> [!WARNING]
+> The emission wave lengths are typically wrong and might need manual curation.
+
+## Extraction of image data from truncated files
+
+If the microscope crashes while imaging, or a file is truncated due to
+a failed transfer it is sometimes possible to recover the image
+data. Most likely there are other tools to do this even better. Let me
+know and I'll link to them. This has been used once on a 87 GB nd2
+file that could not be recovered by NIS elements.
+
+The recovery process has two steps:
+
+1. Find the location of the image data with the `nd2tool_recover` binary.
+2. Use the locations to extract the images with
+   `recover_from_locations.py` from the scripts folder in this repo.
+
+No meta-data is read from the file and hence you will have to provide
+the image sizes, the bit/byte depth and the number of channels.
+
+It assumes that all images have the same size, etc, so it might not be
+a general solution.
+
+Example usage:
+
+``` shell
+$ nd2tool_recover FFPE_FISH/iiXZ1299_20260310_002.nd2
+Input values
+::: Image size (X x Y x Z): 1024 x 1024 x 87
+::: channels: 5
+iiXZ1299_20260310_002.nd2 is 93021286400 b
+Will write to iiXZ1299_20260310_002.nd2.recover_locations.csv
+.... ...@.......ND2 FILE SIGNATURE CHUNK NAME01!Ver3.0......
+Found 1848 ImageDataSeq
+Each ImageDataSeq can have at most 50331664 bytes
+Good! That is compatible with the expected sizes: 10485760
+$ python scripts/recover_from_locations.py --nd2 iiXZ1299_20260310_002.nd2 --width 2048 --height 2048 --planes 77 --ncolor 6
 ```
 
 ## Installation
