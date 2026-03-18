@@ -146,7 +146,7 @@ No meta-data is read from the file and hence you will have to provide
 the image sizes, the bit/byte depth and the number of channels.
 
 It assumes that all images have the same size, etc, so it might not be
-a general solution.
+a general solution. The channels will be named `c01`, `c02`, etc.
 
 Example usage:
 
@@ -162,6 +162,14 @@ Found 1848 ImageDataSeq
 Each ImageDataSeq can have at most 50331664 bytes
 Good! That is compatible with the expected sizes: 10485760
 $ python scripts/recover_from_locations.py --nd2 iiXZ1299_20260310_002.nd2 --width 2048 --height 2048 --planes 77 --ncolor 6
+Expected chunk size: 50331648 (Width x Height x nColor x BPS)
+Parameters are feasible, chunks are at least 50331664 bytes
+Creating /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/
+Will try to recover 24 FOV
+Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c01_001.tif
+Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c02_001.tif
+Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c03_001.tif
+...
 ```
 
 ## Installation
