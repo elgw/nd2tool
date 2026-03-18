@@ -130,11 +130,10 @@ As the note from the program says, please check the script before running it.
 
 ## Extraction of image data from truncated files
 
-If the microscope crashes while imaging, or a file is truncated due to
-a failed transfer it is sometimes possible to recover the image
-data. Most likely there are other tools to do this even better. Let me
-know and I'll link to them. This has been used once on a 87 GB nd2
-file that could not be recovered by NIS elements.
+If the microscope crashes while imaging or a file is truncated due to
+a failed transfer it is sometimes possible to recover some or all of the image
+data. This tool has only been used once, to recover images from a 87 GB nd2
+where NIS elements failed.
 
 The recovery process has two steps:
 
@@ -146,29 +145,28 @@ No meta-data is read from the file and hence you will have to provide
 the image sizes, the bit/byte depth and the number of channels.
 
 It assumes that all images have the same size, etc, so it might not be
-a general solution. The channels will be named `c01`, `c02`, etc.
+a general solution. If you have a better option I'd be happy to link
+to it. The channels will be named `c01`, `c02`, etc.
 
 Example usage:
 
 ``` shell
-$ nd2tool_recover FFPE_FISH/iiXZ1299_20260310_002.nd2
-Input values
-::: Image size (X x Y x Z): 1024 x 1024 x 87
-::: channels: 5
+# Find position of images in the nd2 file
+$ nd2tool_recover iiXZ1299_20260310_002.nd2
 iiXZ1299_20260310_002.nd2 is 93021286400 b
 Will write to iiXZ1299_20260310_002.nd2.recover_locations.csv
 .... ...@.......ND2 FILE SIGNATURE CHUNK NAME01!Ver3.0......
 Found 1848 ImageDataSeq
 Each ImageDataSeq can have at most 50331664 bytes
-Good! That is compatible with the expected sizes: 10485760
+# Extract images
 $ python scripts/recover_from_locations.py --nd2 iiXZ1299_20260310_002.nd2 --width 2048 --height 2048 --planes 77 --ncolor 6
 Expected chunk size: 50331648 (Width x Height x nColor x BPS)
 Parameters are feasible, chunks are at least 50331664 bytes
-Creating /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/
+Creating iiXZ1299_20260310_002_recover/
 Will try to recover 24 FOV
-Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c01_001.tif
-Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c02_001.tif
-Writing /mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002_recover/c03_001.tif
+Writing iiXZ1299_20260310_002_recover/c01_001.tif
+Writing iiXZ1299_20260310_002_recover/c02_001.tif
+Writing iiXZ1299_20260310_002_recover/c03_001.tif
 ...
 ```
 
@@ -210,6 +208,15 @@ sudo apt-get install ./nd2tool-0.1.7-Linux.deb
 of course, you will need to adjust the last line to fit the system
 package manager unless you are on Ubuntu.
 
+`nd2tool_recover` is not built by default, to build it, use:
+
+``` shell
+mkdir build
+cd build
+cmake ..
+make nd2tool_recover
+```
+
 ## Reporting bugs
 Please use [the issue tracking system on
 github](https://github.com/elgw/nd2tool/issues) to report bugs or to
@@ -232,7 +239,7 @@ Python libraries/tools for nd2 files:
 - [Open-Science-Tools/nd2reader](https://github.com/Open-Science-Tools/nd2reader) a pure
 Python package for reading nd2 files. I.e. not using the Nikon library.
 - [tlambert03/nd2](https://github.com/tlambert03/nd2) a Python
-package that uses and ships Nikons shared objects.
+package that uses and ships Nikon's shared objects.
 
 Libraries used by **nd2tool**:
 - [cJSON](https://github.com/DaveGamble/cJSON) for parsing JSON data.

@@ -14,11 +14,16 @@
 // .... ...@.......ND2 FILE SIGNATURE CHUNK NAME01!Ver3.0......
 //
 // It would be quite simple to also allow for some bit-rot,
-// by not using exact string matching to find the "ImageDataSeq" tags
-// but rather using some fuzzy distance metric, for example the Hamming
-// distance
+// by  using some fuzzy distance metric, for example the Hamming
+// distance, to find the "ImageDataSeq" tags.
 //
-// Todo: Be aware of missing/undetected ImageDataSeq's.
+// Todo:
+// - Be aware of missing/undetected ImageDataSeq's.
+// - Test on some more images ...
+// - Include in nd2tool
+// - Export files without the python step
+// - Adopt so that it can be built on mac... ?
+// - ...
 //
 // Version 1.0.0, 2026-03-18
 // Erik Wernersson
@@ -120,6 +125,7 @@ static void usage(void)
     printf("--overwrite"
            "\n\t overwrite any existing output file\n");
     printf("\n");
+#if 0
     printf("Useless arguments (at the moment)\n");
     printf("--width w"
            "\n\t set the image width\n");
@@ -129,7 +135,7 @@ static void usage(void)
            "\n\t set number of colors/channels\n");
     printf("--nz z"
            "\n\t set number of z planes per image\n");
-
+#endif
     return;
 }
 
@@ -137,11 +143,11 @@ static int parse_cli(int argc, char ** argv, conf * s)
 {
 
     struct option longopts[] = {
-        {"width", required_argument, NULL, 'w'},
-        {"height", required_argument, NULL, 'h'},
-        {"ncolor", required_argument, NULL, 'c'},
-        {"nz",     required_argument, NULL, 'z'},
-        {"dry",    no_argument,       NULL, 'W'},
+        //{"width", required_argument, NULL, 'w'},
+        //{"height", required_argument, NULL, 'h'},
+        //{"ncolor", required_argument, NULL, 'c'},
+        //{"nz",     required_argument, NULL, 'z'},
+        //{"dry",    no_argument,       NULL, 'W'},
         {"overwrite", no_argument,    NULL, 'o'},
         {NULL, 0, NULL, 0}};
 
@@ -250,7 +256,7 @@ int main(int argc, char ** argv)
         exit(EXIT_FAILURE);
     }
 
-    conf_show(s);
+    //conf_show(s);
 
     if(s->optpos >= argc)
     {
@@ -304,6 +310,7 @@ int main(int argc, char ** argv)
             {
                 printf("Output file does already exist, either delete it or use --overwrite "
                        "if you want it re-generated\n");
+                free(outfile);
                 exit(EXIT_SUCCESS);
             }
         }
@@ -368,6 +375,7 @@ int main(int argc, char ** argv)
         fclose(fout);
     }
 
+    free(outfile);
     conf_free(s);
     free(ids_pos);
     return EXIT_SUCCESS;
