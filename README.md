@@ -135,6 +135,44 @@ a failed transfer it is sometimes possible to recover some or all of the image
 data. This tool has only been used once, to recover images from a 87 GB nd2
 where NIS elements failed.
 
+<details><summary>tlambert03/nd2 also fails</summary>
+
+``` python
+>>> import nd2 # pip install nd2
+>>> nd2.version('nd2')
+'0.11.2'
+>>> with nd2.ND2File('iiXZ1299_20260310_002.nd2') as ndfile: print(ndfile.metadata)
+...
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+  File "/usr/lib/python3.12/functools.py", line 995, in __get__
+    val = self.func(instance)
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_nd2file.py", line 553, in metadata
+    return self._rdr.metadata()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_readers/_modern/modern_reader.py", line 192, in metadata
+    raw_meta=self._cached_raw_metadata(),
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_readers/_modern/modern_reader.py", line 170, in _cached_raw_metadata
+    meta = self._decode_chunk(k, strip_prefix=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_readers/_modern/modern_reader.py", line 155, in _decode_chunk
+    data = self._load_chunk(name)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_readers/_modern/modern_reader.py", line 130, in _load_chunk
+    offset = self.chunkmap[name][0]
+             ^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_readers/_modern/modern_reader.py", line 102, in chunkmap
+    self._chunkmap = get_chunkmap(self._fh, error_radius=self._error_radius)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/elgw/.venv/lib/python3.12/site-packages/nd2/_parse/_chunk_decode.py", line 152, in get_chunkmap
+    raise ValueError(f"Invalid ChunkMap signature {sig!r} in file {fh.name!r}")
+ValueError: Invalid ChunkMap signature b'\xa1\x04\xc6\x07Q\x03e\x00\xcc\x01\x0e\x02\xab\x04\x83\x07Z\x03s\x00:\x026\x02{\x04\xeb\x07\xf2\x03k\x00' in file '/mnt/TOSH_18T/FFPE_FISH/iiXZ1299_20260310_002.nd2'
+```
+
+</details>
+
 The recovery process has two steps:
 
 1. Find the location of the image data with the `nd2tool_recover` binary.
