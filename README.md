@@ -168,6 +168,8 @@ Writing iiXZ1299_20260310_002_recover/c01_001.tif
 Writing iiXZ1299_20260310_002_recover/c02_001.tif
 Writing iiXZ1299_20260310_002_recover/c03_001.tif
 ...
+# When you are done and know which channel is which you could continue with command like
+$ file-rename --nono -- 's/c01/dapi/' c*.tif # remove --nono to do the job
 ```
 
 ## Installation
