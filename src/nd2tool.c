@@ -34,7 +34,7 @@ typedef struct{
     int use_fov_range;
     int fov_range_from;
     int fov_range_to;
-    
+
     int meta_file;
     int meta_coord;
     int meta_frame;
@@ -1132,7 +1132,7 @@ static void nd2_to_tiff_splitC_splitZ(void * nd2, ntconf_t * conf, nd2info_t * i
                 continue;
             }
         }
-        
+
         for(i64 cc = 0; cc<nchan; cc++) /* For each channel */
         {
             for(i64 kk = 0; kk<P; kk++) /* For each plane */
@@ -1872,7 +1872,7 @@ static int argparse(ntconf_t * conf, int argc, char ** argv)
                 printf("Unable to parse range from %s\n", optarg);
                 printf("When using --slice make sure to quote the range, for example:\n"
                        "nd2tool --slice '[2, 20]' ...\n");
-            }            
+            }
         }
             break;
         case 's':
@@ -2149,6 +2149,9 @@ nd2info_show_deconwolf(ntconf_t * conf, const nd2info_t * info, FILE * fid)
     fprintf(fid, "#!/bin/env bash\n");
     fprintf(fid, "set -e # abort on errors\n");
     fprintf(fid, "\n");
+    fprintf(fid, "# If the data on a slow device");
+    fprintf(fid, "# consider setting the DW_TEMPDIR globally or here\n");
+    fprintf(fid, "# export DW_TEMPDIR=/tmp/\n");
     fprintf(fid, "# PSF Generation\n");
     for(int cc = 0; cc < meta->nchannels; cc++)
     {
